@@ -1,0 +1,83 @@
+name: Repository policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy-check:
+    name: policy-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # No checkout, third-party action, secret, or PR code execution.
+      # Read untrusted PR text as JSON data, never as shell commands.
+      - name: Validate branch and PR metadata
+        shell: python
+        run: |
+          import json
+          import os
+          import re
+          import sys
+
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as f:
+              pr = json.load(f)['pull_request']
+          errors = []
+          branch = pr['head']['ref']
+          allowed_ids = {'chengnih', 'audreyd', 'yihengsu', 'aastal', 'zeanw'}
+          if branch != 'main' and branch.split('/', 1)[0] not in allowed_ids:
+              errors.append('Branch owner must be one of: ' + ', '.join(sorted(allowed_ids)) + '.')
+          pattern = r'[a-z][a-z0-9]*/(feat|fix|refactor|docs|exp)/([1-9][0-9]*-)?[a-z][a-z0-9]*(-[a-z0-9]+)*'
+          if branch != 'main' and not re.fullmatch(pattern, branch):
+              errors.append('Source branch must follow BRANCH_NAMING.md: <andrew-id>/<type>/<description> (optional Issue number).')
+          if len(branch) > 80:
+              errors.append('Source branch exceeds the 80-character limit.')
+          title = pr.get('title', '')
+          if not re.fullmatch(r'(feat|fix|refactor|docs|exp): \S[^\r\n]*', title):
+              errors.append('PR title must use <type>: <short description>; allowed types: feat, fix, refactor, docs, exp.')
+
+          body = pr.get('body') or ''
+          # Ignore comments and fenced examples when checking actual sections.
+          body = re.sub(r'<!--.*?-->', '', body, flags=re.S)
+          body = re.sub(r'^\s*(```|~~~).*?^\s*\1\s*$', '', body, flags=re.M | re.S)
+          headings = list(re.finditer(r'^##[ \t]+(.+?)[ \t]*$', body, re.M))
+          sections = {}
+          for i, heading in enumerate(headings):
+              end = headings[i + 1].start() if i + 1 < len(headings) else len(body)
+              sections.setdefault(heading[1], []).append(body[heading.end():end].strip())
+          required = ['Purpose', 'Changes', 'Validation', 'Limitations & Follow-up']
+          placeholders = [
+              'Explain the problem or research question and why this change is needed.',
+              'Link related Issues, if any.',
+              'Summarize the main changes and important design decisions.',
+              'List checks or experiments actually run, relevant commands, and observed results.',
+              'If validation was not run or was only partial, explain why and what remains unverified.',
+              'List known limitations, effects on other modules, dependencies, or remaining work.',
+              'Write "None" if there are none.',
+          ]
+          for name in required:
+              values = sections.get(name, [])
+              if len(values) != 1:
+                  errors.append('Include exactly one ## ' + name + ' section.')
+              elif not re.search(r'[A-Za-z0-9]', values[0]):
+                  errors.append('Fill in the ' + name + ' section.')
+              elif any(prompt in values[0] for prompt in placeholders):
+                  errors.append('Replace template prompts in the ' + name + ' section with actual information.')
+          # Experiments may use any branch type; a human decides applicability.
+          if 'Experiment Details' in sections:
+              for section in sections['Experiment Details']:
+                  if not section or re.search(r'^\s*-\s+[^\n]+:\s*$', section, re.M):
+                      errors.append('Complete Experiment Details, or remove that section if inapplicable.')
+
+          if errors:
+              for error in errors:
+                  print('::error::' + error)
+              sys.exit(1)
+          print('Policy format checks passed. Human review must verify English, ownership, experiment applicability, and truthful validation.')
