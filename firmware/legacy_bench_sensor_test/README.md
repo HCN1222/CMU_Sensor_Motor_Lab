@@ -1,19 +1,40 @@
-# 旧的单传感器台架测试（历史资料）
 
-`legacy_bench_sensor_test.ino` 是 2026-11-09 在接入完整固件之前，用来单独检查传感器的测试程序（原来放在 `Arduino/motor_sensor_lab/`，已并入本工程）。它每秒在 Serial Monitor 打印一次可读的文字报告：
+# Legacy Single-Sensor Bench Test (Historical Reference)
 
-- MaxSonar **PW（脉宽）输出 → D2**，每秒 10 个样本取中值
-- Sharp GP2Y0A02 → A1，表格插值和平均
-- Omron D3C 微动开关 → **D4**（COM 接 GND，内部上拉，20 ms 去抖）
+`legacy_bench_sensor_test.ino` is a standalone sensor test program used on November 9, 2026, before integration with the complete firmware.
 
-## ⚠️ 引脚和正式接线不同
+Originally located in `Arduino/motor_sensor_lab/`, it has since been incorporated into this project.
 
-| | 本测试程序 | 正式接线（[hardware/WIRING.md](../../hardware/WIRING.md)） |
+The program prints a human-readable report to the Serial Monitor once per second.
+
+### Sensor Configuration
+
+- **MaxSonar:** PW (pulse-width) output → D2. Takes 10 samples per second and reports the median.
+- **Sharp GP2Y0A02:** Connected to A1. Uses lookup-table interpolation and averaging.
+- **Omron D3C Microswitch:** Connected to D4 (COM → GND, internal pull-up enabled, 20 ms debounce).
+
+## ⚠️ Pin Assignments Differ from the Final Wiring
+
+| Component | Legacy Bench Test | Final Wiring ([hardware/WIRING.md](../../hardware/WIRING.md)) |
 |---|---|---|
 | MaxSonar | PW → D2 | **AN → A2** |
-| D3C 开关 | D4 | **A4** |
-| D2 / D4 | 传感器输入 | 编码器 A 相 / DC 驱动方向脚 |
+| D3C Microswitch | D4 | **A4** |
+| D2 / D4 | Sensor inputs | Encoder channel A / DC motor driver direction pin |
 
-**不要在完整接线（尤其是电机驱动已接上、台式电源打开）时上传这个程序**：它不会控制 D5/D7 等电机引脚，驱动板输入可能处于悬空状态。只在面包板上只接这三个传感器时使用。
+### Important Safety Warning
 
-正式固件已经通过 `RAW` 帧提供所有传感器的原始量，`calibration/capture.py` 可以直接采集，一般不再需要这个程序。
+**Do not upload this program when the complete hardware configuration is connected, especially when motor drivers are connected and the bench power supply is turned on.**
+
+This legacy program does not control motor pins such as D5 and D7. As a result, motor driver inputs may remain floating, potentially causing unintended behavior.
+
+**Only use this program for isolated bench testing with the three sensors connected on a breadboard.**
+
+## Current Firmware Recommendation
+
+The production firmware already provides raw sensor measurements through the `RAW` serial frame.
+
+Sensor data can be collected directly using:
+
+`calibration/capture.py`
+
+Therefore, this legacy test program is generally no longer required for normal operation, calibration, or integration testing.
