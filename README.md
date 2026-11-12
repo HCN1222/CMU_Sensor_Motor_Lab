@@ -40,18 +40,8 @@ On Ubuntu 22.04 you can also use a native apt install of ROS 2 Humble instead of
 | Path | Contents |
 |---|---|
 | [TEAM_SETUP.md](TEAM_SETUP.md) | **Teammates who receive the archive start here**: installation, environment, self-check, and the order of hardware tests |
-| [hardware/WIRING.md](hardware/WIRING.md) | **The only authoritative wiring** (parts list, pins, power, differences from older material) |
-| [firmware/hardware_config.h](firmware/hardware_config.h) | **The single location for all physical parameters** |
-| [firmware/README.md](firmware/README.md) | Firmware structure, protection mechanisms, sensor processing, serial protocol v2 |
 | [ros2_ws/README.md](ros2_ws/README.md) | Environment, build, launch, topics, GUI usage |
-| [calibration/README.md](calibration/README.md) | Calibration capture (`capture.py`), error analysis and transfer curves (`analyze.py`) |
-| [docs/HARDWARE_PARAMETERS.md](docs/HARDWARE_PARAMETERS.md) | **List of parameters to measure**: what each affects, how to measure it, steps before the first ARM |
-| [docs/FIELD_CHECKLIST.md](docs/FIELD_CHECKLIST.md) | **On-site checklist**: connect → raw values → config → ARM → GUI → switch mode → sensors → STOP while moving |
 | [tests/TEST_REPORT.md](tests/TEST_REPORT.md) | Test report for this round (separates actually-run passes, software-model passes, not run, and needs physical parameters) |
-| `tools/run_tests.py` | Runs all offline checks in one command |
-| `CLAUDE_SOFTWARE_HANDOFF.md` | Software handoff notes for this round (source of requirements) |
-| `reference/` | Original course assignment guidelines |
-| `*/legacy*/` | Historical material from the Tinkercad phase and the early single-sensor bench test (`firmware/legacy_bench_sensor_test/`). **Their pins differ from the official wiring; do not wire or upload from them** |
 
 ## Order of work once hardware is connected
 
