@@ -1,4 +1,3 @@
-
 # Legacy Single-Sensor Bench Test (Historical Reference)
 
 `legacy_bench_sensor_test.ino` is a standalone sensor test program used on November 9, 2026, before integration with the complete firmware.

@@ -1,0 +1,49 @@
+{
+  "name": "restrict-branch-publishing",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "~ALL"
+      ],
+      "exclude": [
+        "refs/heads/main",
+        "refs/heads/chengnih/feat/*",
+        "refs/heads/chengnih/fix/*",
+        "refs/heads/chengnih/refactor/*",
+        "refs/heads/chengnih/docs/*",
+        "refs/heads/chengnih/exp/*",
+        "refs/heads/audreyd/feat/*",
+        "refs/heads/audreyd/fix/*",
+        "refs/heads/audreyd/refactor/*",
+        "refs/heads/audreyd/docs/*",
+        "refs/heads/audreyd/exp/*",
+        "refs/heads/yihengsu/feat/*",
+        "refs/heads/yihengsu/fix/*",
+        "refs/heads/yihengsu/refactor/*",
+        "refs/heads/yihengsu/docs/*",
+        "refs/heads/yihengsu/exp/*",
+        "refs/heads/aastal/feat/*",
+        "refs/heads/aastal/fix/*",
+        "refs/heads/aastal/refactor/*",
+        "refs/heads/aastal/docs/*",
+        "refs/heads/aastal/exp/*",
+        "refs/heads/zeanw/feat/*",
+        "refs/heads/zeanw/fix/*",
+        "refs/heads/zeanw/refactor/*",
+        "refs/heads/zeanw/docs/*",
+        "refs/heads/zeanw/exp/*"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "type": "creation"
+    },
+    {
+      "type": "update"
+    }
+  ]
+}

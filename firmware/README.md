@@ -1,4 +1,3 @@
-
 # Arduino Uno Firmware
 
 ## Files
@@ -28,12 +27,9 @@ Open `hardware_controller/hardware_controller.ino` using VS Code (Arduino Commun
 - **Port:** COM5 (Windows) or `/dev/ttyACM0` (Linux)
 
 Alternatively, use the command line:
-
 ```bash
 arduino-cli lib install Servo
 arduino-cli compile --fqbn arduino:avr:uno firmware/hardware_controller
-arduino-cli upload --fqbn arduino:avr:uno -p COM5 firmware/hardware_controller
-```
 
 ### Compilation Results
 
@@ -157,7 +153,6 @@ The firmware can only identify readings with a voltage higher than the calibrate
 ```text
 CMD,<seq>,<verb>,<value>
 ACK,<seq>,OK|ERR,<reason>
-
 STATE,ms,mode,pot_deg,pot_pct,ir_raw_cm,ir_cm,sonar_cm,slot_count,slot_ignored,servo_cmd_deg,
       dc_deg,dc_rpm,dc_target,dc_control,step_deg,step_target_deg,step_busy,armed,calibrated,fault
 
@@ -236,8 +231,6 @@ CMD,1,PING,0
 ```
 
 **Note:** The 1.5-second watchdog is active only after the controller has been armed.
-
----
 
 ## Protocol Version Management
 
