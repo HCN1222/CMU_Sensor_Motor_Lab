@@ -1,0 +1,30 @@
+# Cross-platform environment (Windows / Linux / macOS) for the sensor-motor lab.
+# ROS 2 Humble comes from RoboStack (conda packages), so the same file works on
+# every OS without a system-wide ROS install.
+#
+#   conda env create -f environment.yml
+#   conda activate sensorMotorLab
+#
+# On Ubuntu 22.04 you may instead use a native apt ROS 2 Humble install; see README.
+# The C/C++ compiler for host-side firmware tests is NOT listed here because it is
+# OS specific (see README "Environment" section).
+name: sensorMotorLab
+channels:
+  - conda-forge
+  - robostack-staging
+  - nodefaults
+dependencies:
+  - python=3.11
+  - pip
+  # ROS 2 Humble (RoboStack)
+  - ros-humble-ros-core
+  - ros-humble-std-msgs
+  - ros-humble-launch-ros
+  - ros-humble-ros2launch
+  - ros-humble-rqt-gui
+  - ros-humble-rqt-gui-py
+  - ros-humble-python-qt-binding
+  - colcon-common-extensions
+  - setuptools<=70  # ament_python packages need an older setuptools
+  # Serial bridge
+  - pyserial
