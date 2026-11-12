@@ -1,95 +1,249 @@
-# Uno 固件
+# Arduino Uno Firmware
 
-## 文件
+## Files
 
-| 文件 | 内容 | 能否直接编辑 |
+| File | Description | Directly Editable |
 |---|---|---|
-| `controller_core.h` | 与硬件无关的控制逻辑：转换、滤波、消抖、模式、PID、保护、协议解析、帧格式化 | ✅（主机测试也用它） |
-| `hardware_config.h` | **所有实物参数**的唯一位置（编码器、PID、舵机、电位器、IR 表、超声波、去抖、安全开关） | ✅ 最常改的文件 |
-| `arduino_adapter.inc` | Uno 引脚、中断、PWM/STEP 输出、Servo、非阻塞串口 | ✅ |
-| `generate_sketches.py` | 把上面三个文件拼接成可上传的单文件 sketch | — |
-| `hardware_controller/hardware_controller.ino` | **生成的**上传文件 | ❌ 会被覆盖 |
-| `legacy_tinkercad/` | 旧浏览器演示程序 | ❌ 不要上传 |
-| `legacy_bench_sensor_test/` | 早期单传感器台架测试（MaxSonar PW→D2、开关→D4，与正式接线不同） | ❌ 完整接线时不要上传 |
+| `controller_core.h` | Hardware-independent control logic: conversions, filtering, debouncing, operating modes, PID, safety protection, protocol parsing, and frame formatting | Yes (also used by host-side tests) |
+| `hardware_config.h` | **Single source of truth for all hardware parameters** (encoder, PID, servo, potentiometer, IR lookup table, ultrasonic sensor, debouncing, and safety switches) | Yes (most frequently modified file) |
+| `arduino_adapter.inc` | Arduino Uno pin assignments, interrupts, PWM/STEP outputs, Servo, and non-blocking serial communication | Yes |
+| `generate_sketches.py` | Combines the three source files above into a single uploadable Arduino sketch | — |
+| `hardware_controller/hardware_controller.ino` | **Auto-generated** uploadable sketch | No (will be overwritten) |
+| `legacy_tinkercad/` | Previous browser-based demonstration program | No (do not upload) |
+| `legacy_bench_sensor_test/` | Early single-sensor bench test (MaxSonar PW → D2, switch → D4; different from the final wiring configuration) | No (do not upload with the complete hardware setup) |
 
-改完源文件后：
+After modifying the source files:
 
 ```bash
-python firmware/generate_sketches.py           # 重新生成
-python firmware/generate_sketches.py --check   # 确认已同步（测试脚本也会检查）
+python firmware/generate_sketches.py           # Regenerate the sketch
+python firmware/generate_sketches.py --check   # Verify synchronization (also checked by test scripts)
 ```
 
-上传：VS Code（Arduino Community Edition 扩展）或 Arduino IDE 打开 `hardware_controller/hardware_controller.ino`，板子选 Arduino Uno，端口选 COM5（或 `/dev/ttyACM0`）；或用命令行：
+### Uploading to Arduino Uno
 
+Open `hardware_controller/hardware_controller.ino` using VS Code (Arduino Community Edition extension) or Arduino IDE.
+
+- **Board:** Arduino Uno
+- **Port:** COM5 (Windows) or `/dev/ttyACM0` (Linux)
+
+Alternatively, use the command line:
 ```bash
 arduino-cli lib install Servo
 arduino-cli compile --fqbn arduino:avr:uno firmware/hardware_controller
-arduino-cli upload  --fqbn arduino:avr:uno -p COM5 firmware/hardware_controller
-```
 
-2026-11-09 编译结果（arduino:avr 1.8.8，Servo 1.3.0）：Flash 21 030 / 32 256 B（65%），全局 RAM 1 202 / 2 048 B（58%，余 846 B 给栈）。
+### Compilation Results
 
-## 运行时行为
+**November 9, 2026** (`arduino:avr 1.8.8`, Servo `1.3.0`):
 
-| 周期 | 工作 |
+| Resource | Usage | Percentage |
+|---|---|---|
+| Flash | 21,030 / 32,256 B | 65% |
+| Global RAM | 1,202 / 2,048 B | 58% |
+| Remaining RAM for stack | 846 B | — |
+
+---
+
+## Runtime Behavior
+
+| Interval | Operations |
 |---|---|
-| 每次 loop | 读串口命令（每次最多 48 字节）、DC 控制、PWM、舵机、STEP 脉冲、清空发送队列 |
-| 20 ms | 读 A0/A1/A2（每路丢弃首次转换）、A3 槽型、A4 按钮 |
-| 100 ms | 发送 `STATE` + `RAW`（同一时间戳） |
-| 1000 ms | 发送 `CONFIG` |
+| Every loop iteration | Process serial commands (up to 48 bytes per iteration), DC motor control, PWM, servo control, STEP pulse generation, and transmission queue flushing |
+| 20 ms | Read A0/A1/A2 (discard the first ADC conversion for each channel), A3 slot sensor, and A4 button |
+| 100 ms | Transmit `STATE` and `RAW` frames with the same timestamp |
+| 1000 ms | Transmit `CONFIG` frame |
 
-- **非阻塞串口**：`Serial.print` 在 64 字节硬件缓冲满时会阻塞，影响 STEP 周期和 STOP 响应。现在所有输出先进 256 字节队列，按 `Serial.availableForWrite()` 逐步发送。队列不够时丢弃遥测帧（启动时和每秒一次以 `INFO,TELEMETRY_DROPPED` 报告），ACK 永不丢弃。
-- **字符串放在 Flash**（`LAB_STR`/`PSTR`）以节省 RAM。
-- **上电即 DISARMED**：步进 ENABLE 高、DC PWM 0、舵机不发脉冲。
+### Non-blocking Serial Communication
 
-## 安全与保护
+`Serial.print` may block when the 64-byte hardware transmission buffer becomes full, affecting STEP timing and STOP response latency.
 
-| 条件 | 结果 | `fault` |
+To prevent this:
+
+- All outgoing data is placed into a 256-byte transmission queue.
+- Data is transmitted incrementally according to `Serial.availableForWrite()`.
+- Telemetry frames are dropped when the queue lacks sufficient capacity.
+- Dropped telemetry is reported through `INFO,TELEMETRY_DROPPED` at startup and once per second.
+- ACK responses are never dropped.
+
+### Memory Optimization
+
+Strings are stored in Flash memory using `LAB_STR` / `PSTR` to reduce RAM consumption.
+
+### Startup State
+
+The controller starts in the **DISARMED** state upon power-up:
+
+- Stepper ENABLE pin: HIGH
+- DC motor PWM: 0
+- Servo pulses: Disabled
+
+---
+
+## Safety and Protection
+
+| Condition | Response | `fault` |
 |---|---|---|
-| `HARDWARE_CONFIG_VERIFIED = false` | ARM 被拒绝（`CONFIG_REQUIRED`） | — |
-| 配置不自洽（如 IR 表不单调、滞回反向） | ARM 被拒绝（`CONFIG_INVALID`），启动时 INFO 报告具体项 | `CONFIG_INVALID` |
-| 1.5 s 没有被接受的命令（ROS 每 0.5 s 发 PING） | STOP + 解除使能 | `WATCHDOG` |
-| \|PWM\| ≥ 120 且编码器 1 s 无变化 | STOP + 解除使能 | `ENCODER_STALL` |
-| \|PWM\| ≥ 120 且实测转向与输出相反 1 s | STOP + 解除使能 | `ENCODER_DIRECTION` |
-| DC_MOVE 15 s 未到位 | DC 停止，仍保持使能 | `POSITION_TIMEOUT` |
-| 模式切换（按钮或命令） | 取消 DC 运动和剩余步数，保持使能状态 | — |
-| STOP | DC PWM 0、取消剩余步数、步进禁用、舵机停脉冲、解除使能 | — |
+| `HARDWARE_CONFIG_VERIFIED = false` | Reject ARM command (`CONFIG_REQUIRED`) | — |
+| Invalid configuration (e.g., non-monotonic IR lookup table or reversed hysteresis thresholds) | Reject ARM command (`CONFIG_INVALID`) and report specific configuration errors through INFO at startup | `CONFIG_INVALID` |
+| No accepted command for 1.5 seconds (ROS sends PING every 0.5 seconds) | STOP and disable motor outputs | `WATCHDOG` |
+| \|PWM\| >= 120 with no encoder count change for 1 second | STOP and disable motor outputs | `ENCODER_STALL` |
+| \|PWM\| >= 120 with measured encoder direction opposite to the commanded output for 1 second | STOP and disable motor outputs | `ENCODER_DIRECTION` |
+| `DC_MOVE` fails to reach its target within 15 seconds | Stop DC motor motion while remaining armed | `POSITION_TIMEOUT` |
+| Mode switching (button or command) | Cancel DC motion and remaining stepper movement while preserving the current armed state | — |
+| STOP command | Set DC PWM to 0, cancel remaining stepper movement, disable stepper, stop servo pulses, and disarm | — |
 
-`fault` 显示自上次 ARM 以来最后一次**自动**停机的原因，再次 ARM 后清为 `NONE`。STOP 是软件停机，不切断电源。
+### Fault Handling
 
-## 传感器处理
+The `fault` field stores the most recent **automatic shutdown reason** since the last ARM command.
 
-| 传感器 | 转换 | 无效值 |
+- The fault resets to `NONE` after the next successful ARM.
+- STOP performs a software shutdown.
+- STOP does **not** physically disconnect power.
+
+---
+
+## Sensor Processing
+
+| Sensor | Conversion / Processing | Invalid Values |
 |---|---|---|
-| 电位器 | `pot_pct` = ADC 在 [`POT_ADC_MIN`, `POT_ADC_MAX`] 中的比例；`pot_deg` = 比例 × `POT_TRAVEL_DEG` | `POT_TRAVEL_DEG = 0`（未测）时 `pot_deg = -1` |
-| Sharp GP2Y0A02 | 分段线性插值表 → `ir_raw_cm`；连续 5 个有效样本滑动平均 → `ir_cm` | 高于 20 cm 点：`-2`（太近）；低于 150 cm 点：`-1`。无效样本清空滤波器，窗口未满时 `ir_cm = -1` |
-| MaxSonar AN | 9 样本中值 × 1.27 cm/ADC | ≤ 约 16.5 cm：`-2`；ADC < 4（断线）或 > 645 cm：`-1` |
-| 槽型 | 10 ms 去抖后的**新遮挡**计数一次 | — |
-| 模式按钮 | 30 ms 去抖后的**按下沿**切换一次；按住不重复 | — |
+| Potentiometer | `pot_pct` = normalized ADC position within [`POT_ADC_MIN`, `POT_ADC_MAX`]; `pot_deg` = normalized percentage × `POT_TRAVEL_DEG` | `pot_deg = -1` when `POT_TRAVEL_DEG = 0` (not calibrated) |
+| Sharp GP2Y0A02 IR | Piecewise linear interpolation table → `ir_raw_cm`; moving average of 5 consecutive valid samples → `ir_cm` | Above the 20 cm calibration voltage: `-2` (too close); below the 150 cm calibration voltage: `-1`. Invalid samples reset the filter; `ir_cm = -1` until the window is full |
+| MaxSonar AN | Median of 9 samples × 1.27 cm/ADC | Approximately <= 16.5 cm: `-2`; ADC < 4 (disconnected) or distance > 645 cm: `-1` |
+| Slot Sensor | Count each new obstruction after 10 ms debouncing | — |
+| Mode Button | Switch modes on each debounced press edge (30 ms); holding the button does not repeat the action | — |
 
-传感器模式规则：电位器比例 → 舵机命令角度；IR 滤波值 < `IR_STOP_CM` 停、> `IR_START_CM` 以 `DC_SENSOR_RPM` 转，之间保持（无效/太近/滤波未满一律视为停）；新遮挡 → 步进转 90°，步进忙时该事件计入 `slot_ignored`，不排队。
+### Sensor Mode Behavior
 
-**GP2Y0A02 的限制**：约 15 cm 以内输出电压会折返，与较远距离的电压相同，单个 ADC 值无法识别。固件只能识别「高于 20 cm 标定点的电压」为太近。
+**Potentiometer → Servo**
 
-## 串口协议 v2（115200 baud，ASCII，LF 结尾）
+The potentiometer percentage is mapped to the commanded servo angle.
+
+**IR Sensor → DC Motor**
+
+- If the filtered IR distance is below `IR_STOP_CM`, stop the DC motor.
+- If the filtered IR distance is above `IR_START_CM`, run the DC motor at `DC_SENSOR_RPM`.
+- Between the two thresholds, maintain the previous state.
+- Invalid readings, excessively close readings, or incomplete filter windows are treated as STOP conditions.
+
+**Slot Sensor → Stepper Motor**
+
+- Each new obstruction triggers a 90° stepper rotation.
+- If the stepper is already moving, the event is recorded in `slot_ignored`.
+- Ignored events are not queued for later execution.
+
+### GP2Y0A02 Limitation
+
+At distances below approximately 15 cm, the GP2Y0A02 output voltage becomes non-monotonic and can match the voltage corresponding to a farther distance.
+
+Consequently, a single ADC measurement cannot reliably distinguish these conditions.
+
+The firmware can only identify readings with a voltage higher than the calibrated 20 cm point as **too close**.
+
+---
+
+## Serial Protocol v2
+
+**Communication settings:**
+
+- Baud rate: `115200`
+- Encoding: ASCII
+- Line termination: LF (`\n`)
+
+### Message Formats
 
 ```text
 CMD,<seq>,<verb>,<value>
 ACK,<seq>,OK|ERR,<reason>
 STATE,ms,mode,pot_deg,pot_pct,ir_raw_cm,ir_cm,sonar_cm,slot_count,slot_ignored,servo_cmd_deg,
-      dc_deg,dc_rpm,dc_target,dc_control,step_deg,step_target_deg,step_busy,armed,calibrated,fault   (21 字段)
-RAW,ms,pot_adc,ir_adc,sonar_adc,slot_blocked,button_pressed,enc_counts,step_steps                 (9 字段)
+      dc_deg,dc_rpm,dc_target,dc_control,step_deg,step_target_deg,step_busy,armed,calibrated,fault
+
+RAW,ms,pot_adc,ir_adc,sonar_adc,slot_blocked,button_pressed,enc_counts,step_steps
+
 CONFIG,protocol,servo_min_deg,servo_max_deg,servo_min_us,servo_max_us,max_rpm,sensor_rpm,
        dc_move_max_deg,step_move_max_deg,steps_per_rev,enc_cpr,enc_sign,pot_adc_min,pot_adc_max,
-       pot_travel_deg,ir_stop_cm,ir_start_cm,sonar_cm_per_adc,hw_verified,cal_mask              (21 字段)
+       pot_travel_deg,ir_stop_cm,ir_start_cm,sonar_cm_per_adc,hw_verified,cal_mask
+
 INFO,<detail>
 ```
 
-- 命令：`ARM` `STOP` `MODE`(0=GUI, 1=SENSOR) `SERVO`(度) `DC_RPM` `DC_MOVE`(相对度) `STEP_MOVE`(相对度) `ZERO`(仅 DISARMED) `PING`。
-- 序号必须递增；重复的最后一个序号只回原 ACK、不再执行（防止相对运动重复）；更旧的回 `STALE_SEQ`。
-- `servo_cmd_deg` 是**命令值**；`step_deg` 是**已发步数推算**；`dc_deg`/`dc_rpm` 是**编码器实测**。位置模式下 `dc_target` 是内部绝对目标坐标。
-- `enc_counts` 是原始 x4 计数，不受 CPR、符号、ZERO 影响，用于测 CPR。
-- `cal_mask` 位：1 电位器、2 IR、4 超声波、8 编码器、16 舵机。`calibrated` = 全部位都置位。
-- 手动调试（Serial Monitor，选 LF 结尾）：`CMD,1,PING,0`。注意 1.5 s 看门狗只在 ARM 后起作用。
+### Message Field Counts
 
-协议字段改动必须同时改：`controller_core.h` 格式化函数、`protocol.py`、GUI、`tests/`，并把 `LAB_PROTOCOL_VERSION` 和 `PROTOCOL_VERSION` 一起加 1。
+| Message | Fields |
+|---|---|
+| `STATE` | 21 |
+| `RAW` | 9 |
+| `CONFIG` | 21 |
+
+### Supported Commands
+
+| Command | Description |
+|---|---|
+| `ARM` | Arm the controller |
+| `STOP` | Stop all motion and disarm |
+| `MODE` | Select operating mode (`0` = GUI, `1` = SENSOR) |
+| `SERVO` | Set commanded servo angle in degrees |
+| `DC_RPM` | Set DC motor speed |
+| `DC_MOVE` | Move the DC motor by a relative angle |
+| `STEP_MOVE` | Move the stepper motor by a relative angle |
+| `ZERO` | Reset the reference position (only allowed while DISARMED) |
+| `PING` | Keep-alive command for watchdog communication |
+
+### Sequence Number Handling
+
+Command sequence numbers must increase monotonically.
+
+- A repeated command using the most recently accepted sequence number returns the previous ACK without re-executing the command.
+- This prevents duplicate execution of relative movement commands.
+- Commands with older sequence numbers return `STALE_SEQ`.
+
+### State Interpretation
+
+| Field | Meaning |
+|---|---|
+| `servo_cmd_deg` | Commanded servo angle, not measured position |
+| `step_deg` | Estimated stepper position calculated from generated STEP pulses |
+| `dc_deg` | Encoder-measured DC motor position |
+| `dc_rpm` | Encoder-measured DC motor speed |
+| `dc_target` | Internal absolute target position in DC position-control mode |
+| `enc_counts` | Raw x4 encoder count, independent of CPR, sign configuration, and ZERO; useful for measuring CPR |
+
+### Calibration Mask (`cal_mask`)
+
+| Bit Value | Calibration |
+|---|---|
+| 1 | Potentiometer |
+| 2 | IR sensor |
+| 4 | Ultrasonic sensor |
+| 8 | Encoder |
+| 16 | Servo |
+
+The `calibrated` field becomes true only when **all calibration bits are set**.
+
+### Manual Serial Debugging
+
+Using Arduino Serial Monitor:
+
+1. Set the baud rate to `115200`.
+2. Set the line ending to **Newline (LF)**.
+3. Send the following command:
+
+```text
+CMD,1,PING,0
+```
+
+**Note:** The 1.5-second watchdog is active only after the controller has been armed.
+
+## Protocol Version Management
+
+Any change to protocol fields must be applied consistently across the following components:
+
+1. `controller_core.h` — Frame formatting functions
+2. `protocol.py` — Protocol parsing and definitions
+3. GUI — Communication and display logic
+4. `tests/` — Protocol and integration tests
+
+Both version constants must be incremented together:
+
+- `LAB_PROTOCOL_VERSION`
+- `PROTOCOL_VERSION`
+
+This ensures consistent communication between the Arduino firmware, ROS interface, GUI, and host-side tests.
