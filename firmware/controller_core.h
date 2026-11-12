@@ -1,0 +1,560 @@
+#ifndef SENSOR_MOTOR_CONTROLLER_CORE_H
+#define SENSOR_MOTOR_CONTROLLER_CORE_H
+// Portable control logic. Shared by the Uno firmware and the host behavioral tests.
+// No Arduino APIs here: hardware access lives in arduino_adapter.inc and
+// physical parameters live in hardware_config.h.
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+// String literals live in flash on AVR (PSTR) to save the Uno's 2 KB of RAM.
+// Every string the core hands out (ACK reasons, fault codes, frame text) uses
+// LAB_STR, and LineWriter reads them back with labReadChar.
+#if defined(__AVR__)
+#include <avr/pgmspace.h>
+#define LAB_STR(s) PSTR(s)
+inline char labReadChar(const char *p) { return char(pgm_read_byte(p)); }
+#else
+#define LAB_STR(s) (s)
+inline char labReadChar(const char *p) { return *p; }
+#endif
+
+// strcmp() for a RAM string against a LAB_STR literal. On AVR the literal lives in
+// flash, so plain strcmp() would read RAM at the flash address and never match.
+inline int labStringCompare(const char *ram, const char *stored) {
+  for (;;) {
+    const unsigned char a = static_cast<unsigned char>(*ram++);
+    const unsigned char b = static_cast<unsigned char>(labReadChar(stored++));
+    if (a != b) return int(a) - int(b);
+    if (a == 0) return 0;
+  }
+}
+
+namespace lab {
+
+// Serial protocol revision reported in CONFIG frames. Bump on any frame change.
+#define LAB_PROTOCOL_VERSION 2
+
+// Distance sentinels (all real distances are >= 0).
+const float INVALID = -1.0f;    // no usable reading: out of range, no target, or disconnected
+const float TOO_CLOSE = -2.0f;  // closer than the sensor's minimum range (saturated/ambiguous)
+
+// Per-subsystem calibration bits reported in CONFIG.cal_mask.
+enum CalibrationBit { CAL_POT = 1, CAL_IR = 2, CAL_SONAR = 4, CAL_ENCODER = 8, CAL_SERVO = 16, CAL_ALL = 31 };
+
+// Sharp GP2Y0A02YK0F (20-150 cm) TYPICAL curve for a 5 V ADC reference.
+// Source: manufacturer typical characteristic (white target). NOT a team measurement.
+// ADC must decrease strictly as distance increases.
+const int16_t GP2Y0A02_TYPICAL_ADC[] = {502, 379, 287, 236, 201, 156, 121, 100, 82};
+const float GP2Y0A02_TYPICAL_CM[] = {20, 30, 40, 50, 60, 80, 100, 120, 150};
+const uint8_t GP2Y0A02_TYPICAL_POINTS = 9;
+
+const uint8_t IR_FILTER_WINDOW = 5;     // moving average over valid IR samples
+const uint8_t SONAR_MEDIAN_WINDOW = 9;  // median over sonar AN samples (~180 ms at 20 ms)
+
+inline float limit(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }
+inline bool finiteNumber(float x) { return isfinite(x); }
+inline uint32_t elapsed(uint32_t now, uint32_t then) { return now - then; }
+
+struct Config {
+  // DC motor and quadrature encoder (x4 counts per OUTPUT shaft revolution).
+  float encoderCountsPerOutputRev;
+  int8_t encoderSign;               // +1 or -1: makes positive PWM produce positive degrees
+  float maxRpm, sensorRpm;          // GUI speed limit; speed used by the IR sensor rule
+  float moveMaxDegrees;             // largest |DC_MOVE|
+  float velocityKff;                // feed-forward PWM per RPM (0 disables)
+  float velocityKp, velocityKi, velocityKd;
+  float positionKp, positionKi, positionKd;
+  float positionToleranceDeg, settleRpm;
+  float stallPwm;                   // |PWM| at or above which zero encoder motion is a stall
+  uint32_t stallMs;
+  uint32_t positionTimeoutMs;       // DC_MOVE must settle within this time
+  // Stepper.
+  float stepsPerOutputRev;          // full steps * microsteps
+  uint32_t stepIntervalUs;          // time between STEP pulses
+  float sensorStepDegrees;          // slot-sensor rule: one new obstruction = this many degrees
+  float stepMoveMaxDegrees;         // largest |STEP_MOVE|
+  // Servo: commanded-angle range and the pulse widths that correspond to its ends.
+  float servoMinDegrees, servoMaxDegrees;
+  int16_t servoMinUs, servoMaxUs;
+  // Potentiometer: ADC at the two ends of the usable travel and the measured angle between.
+  int16_t potAdcMin, potAdcMax;
+  float potTravelDegrees;           // 0 = not measured: pot_deg is reported INVALID
+  // Sharp IR transfer table (ADC strictly decreasing) and the DC start/stop hysteresis.
+  const int16_t *irAdc;
+  const float *irCm;
+  uint8_t irPoints;
+  float irStopCm, irStartCm;
+  // MaxSonar AN: cm per ADC count, valid measuring range.
+  float sonarCmPerAdc, sonarMinCm, sonarMaxCm;
+  // Inputs and safety.
+  uint32_t buttonDebounceMs, slotDebounceMs, watchdogMs;
+  bool hardwareVerified;
+  uint8_t calibratedMask;
+
+  // Defaults are generic HOST-TEST values. The real Uno uses makeHardwareConfig().
+  Config() : encoderCountsPerOutputRev(360.0f), encoderSign(1), maxRpm(120.0f), sensorRpm(20.0f),
+    moveMaxDegrees(3600.0f), velocityKff(0.0f), velocityKp(2.2f), velocityKi(7.0f), velocityKd(0.0f),
+    positionKp(0.65f), positionKi(0.0f), positionKd(0.03f), positionToleranceDeg(1.0f), settleRpm(2.0f),
+    stallPwm(100.0f), stallMs(1000), positionTimeoutMs(15000),
+    stepsPerOutputRev(200.0f), stepIntervalUs(5000), sensorStepDegrees(90.0f), stepMoveMaxDegrees(3600.0f),
+    servoMinDegrees(0.0f), servoMaxDegrees(180.0f), servoMinUs(1000), servoMaxUs(2000),
+    potAdcMin(0), potAdcMax(1023), potTravelDegrees(300.0f),
+    irAdc(GP2Y0A02_TYPICAL_ADC), irCm(GP2Y0A02_TYPICAL_CM), irPoints(GP2Y0A02_TYPICAL_POINTS),
+    irStopCm(35.0f), irStartCm(45.0f),
+    sonarCmPerAdc(1.27f), sonarMinCm(15.24f), sonarMaxCm(645.0f),
+    buttonDebounceMs(30), slotDebounceMs(10), watchdogMs(1500),
+    hardwareVerified(false), calibratedMask(0) {}
+};
+
+// Returns a reason string if the configuration is unusable, or 0 if it is valid.
+inline const char *configError(const Config &c) {
+  if (!finiteNumber(c.encoderCountsPerOutputRev) || c.encoderCountsPerOutputRev <= 0) return LAB_STR("ENCODER_CPR");
+  if (c.encoderSign != 1 && c.encoderSign != -1) return LAB_STR("ENCODER_SIGN");
+  if (!finiteNumber(c.maxRpm) || c.maxRpm <= 0 || c.maxRpm > 10000) return LAB_STR("MAX_RPM");
+  if (!finiteNumber(c.sensorRpm) || fabsf(c.sensorRpm) > c.maxRpm) return LAB_STR("SENSOR_RPM");
+  if (!finiteNumber(c.moveMaxDegrees) || c.moveMaxDegrees <= 0) return LAB_STR("MOVE_MAX");
+  if (!finiteNumber(c.stepsPerOutputRev) || c.stepsPerOutputRev <= 0 || c.stepsPerOutputRev > 100000) return LAB_STR("STEPS_PER_REV");
+  if (c.stepIntervalUs < 500) return LAB_STR("STEP_INTERVAL");
+  if (!finiteNumber(c.stepMoveMaxDegrees) || c.stepMoveMaxDegrees <= 0) return LAB_STR("STEP_MOVE_MAX");
+  if (!finiteNumber(c.servoMinDegrees) || !finiteNumber(c.servoMaxDegrees) ||
+      c.servoMinDegrees < 0 || c.servoMaxDegrees <= c.servoMinDegrees || c.servoMaxDegrees > 180) return LAB_STR("SERVO_DEG");
+  if (c.servoMinUs < 500 || c.servoMaxUs > 2500 || c.servoMaxUs <= c.servoMinUs) return LAB_STR("SERVO_US");
+  if (c.potAdcMin < 0 || c.potAdcMax > 1023 || c.potAdcMax - c.potAdcMin < 50) return LAB_STR("POT_ADC");
+  if (!finiteNumber(c.potTravelDegrees) || c.potTravelDegrees < 0 || c.potTravelDegrees > 3600) return LAB_STR("POT_TRAVEL");
+  if (!c.irAdc || !c.irCm || c.irPoints < 2) return LAB_STR("IR_TABLE");
+  for (uint8_t i = 0; i + 1 < c.irPoints; ++i)
+    if (c.irAdc[i] <= c.irAdc[i + 1] || c.irCm[i] >= c.irCm[i + 1]) return LAB_STR("IR_TABLE_ORDER");
+  if (c.irAdc[0] > 1023 || c.irAdc[c.irPoints - 1] < 0) return LAB_STR("IR_TABLE_ADC");
+  if (!(c.irStopCm >= c.irCm[0]) || !(c.irStartCm <= c.irCm[c.irPoints - 1]) || !(c.irStartCm > c.irStopCm)) return LAB_STR("IR_THRESHOLDS");
+  if (!finiteNumber(c.sonarCmPerAdc) || c.sonarCmPerAdc <= 0 || !(c.sonarMaxCm > c.sonarMinCm) || c.sonarMinCm < 0) return LAB_STR("SONAR");
+  if (c.watchdogMs == 0 || c.buttonDebounceMs == 0) return LAB_STR("TIMING");
+  return 0;
+}
+
+// Piecewise-linear IR conversion. Above the first ADC point the target is closer
+// than the calibrated minimum (TOO_CLOSE); below the last point there is no
+// target within range (INVALID). NOTE: a target much closer than ~15 cm can
+// produce the SAME voltage as a farther one; a single ADC value cannot detect that.
+inline float irDistanceFromAdc(const Config &c, int adc) {
+  if (adc > c.irAdc[0]) return TOO_CLOSE;
+  if (adc < c.irAdc[c.irPoints - 1]) return INVALID;
+  for (uint8_t i = 0; i + 1 < c.irPoints; ++i) {
+    if (adc <= c.irAdc[i] && adc >= c.irAdc[i + 1]) {
+      return c.irCm[i] + (c.irCm[i + 1] - c.irCm[i]) * float(c.irAdc[i] - adc) / float(c.irAdc[i] - c.irAdc[i + 1]);
+    }
+  }
+  return INVALID;
+}
+
+// LV-MaxSonar-EZ AN output is (Vcc/512) per inch; with ADC Vref = Vcc that is
+// 2 counts per inch = 1.27 cm per count. Readings saturate at ~6 in (15.24 cm):
+// anything closer still reads ~15 cm, so values at the floor are TOO_CLOSE.
+inline float sonarDistanceFromAdc(const Config &c, int adc) {
+  if (adc < 4) return INVALID;  // AN cannot legitimately be ~0 V: disconnected or no power
+  const float cm = float(adc) * c.sonarCmPerAdc;
+  if (cm < c.sonarMinCm + c.sonarCmPerAdc) return TOO_CLOSE;
+  if (cm > c.sonarMaxCm) return INVALID;
+  return cm;
+}
+
+struct Debounce {
+  bool stable, candidate, initialized;
+  uint32_t candidateSince;
+  Debounce() : stable(false), candidate(false), initialized(false), candidateSince(0) {}
+  // First sample establishes state and never counts as a user event.
+  bool update(bool raw, uint32_t now, uint32_t milliseconds) {
+    if (!initialized) { stable = candidate = raw; candidateSince = now; initialized = true; return false; }
+    if (raw != candidate) { candidate = raw; candidateSince = now; }
+    if (candidate != stable && elapsed(now, candidateSince) >= milliseconds) {
+      stable = candidate; return true;
+    }
+    return false;
+  }
+};
+
+struct PID {
+  float integral, previousMeasurement;
+  bool initialized;
+  PID() : integral(0), previousMeasurement(0), initialized(false) {}
+  void reset() { integral = 0; previousMeasurement = 0; initialized = false; }
+  // offset = feed-forward term added before saturation.
+  float update(float target, float measured, float dt, float kp, float ki, float kd, float bound, float offset = 0) {
+    if (!(dt > 0)) return 0;
+    const float error = target - measured;
+    const float derivative = initialized ? -(measured - previousMeasurement) / dt : 0;
+    previousMeasurement = measured; initialized = true;
+    const float range = 2 * bound / (ki > 0 ? ki : 1);
+    const float proposed = limit(integral + error * dt, -range, range);
+    const float trial = offset + kp * error + ki * proposed + kd * derivative;
+    // Conditional integration prevents windup while output is saturated.
+    if ((trial <= bound && trial >= -bound) || (trial > bound && error < 0) || (trial < -bound && error > 0)) integral = proposed;
+    return limit(offset + kp * error + ki * integral + kd * derivative, -bound, bound);
+  }
+};
+
+enum Mode { GUI = 0, SENSOR = 1 };
+enum DcControl { RPM = 0, POSITION = 1 };
+struct Ack { uint32_t sequence; bool ok; const char *reason; };
+
+class Controller {
+ public:
+  Config cfg;
+  Mode mode;
+  DcControl dcControl;
+  bool armed;
+  // Converted sensor values (negative = INVALID / TOO_CLOSE sentinel).
+  float potDegrees, potPercent, irRawCm, irCm, sonarCm;
+  // Last raw inputs (reported verbatim in RAW frames).
+  int potAdc, irAdc, sonarAdc;
+  bool slotRaw, buttonRaw;
+  int32_t encoderRaw;
+  // Outputs and motion state.
+  float servoDegrees, dcDegrees, dcRpm, dcTarget, pwm;
+  int32_t stepPosition, stepTarget, encoderZero;
+  uint32_t slotCount, slotIgnored, lastContact;
+  bool stepPulseHigh;
+  const char *fault;  // last automatic stop reason since the most recent ARM ("NONE" if none)
+  Debounce button, slot;
+
+  Controller(const Config &c = Config()) : cfg(c), mode(GUI), dcControl(RPM), armed(false),
+    potDegrees(INVALID), potPercent(0), irRawCm(INVALID), irCm(INVALID), sonarCm(INVALID),
+    potAdc(0), irAdc(0), sonarAdc(0), slotRaw(false), buttonRaw(false), encoderRaw(0),
+    servoDegrees(0), dcDegrees(0), dcRpm(0), dcTarget(0), pwm(0),
+    stepPosition(0), stepTarget(0), encoderZero(0), slotCount(0), slotIgnored(0), lastContact(0),
+    stepPulseHigh(false), fault(LAB_STR("NONE")), filterSum(0), filterIndex(0), filterCount(0),
+    sonarIndex(0), sonarCount(0), irRunning(false), lastControlMs(0), lastControlCounts(0),
+    controlInitialized(false), stallCounts(0), stallSince(0), reverseSince(0), positionStartMs(0), lastStepUs(0),
+    haveSequence(false), lastSequence(0), lastSequenceOk(false), lastSequenceReason(LAB_STR("BOOT")) {
+      for (uint8_t i = 0; i < IR_FILTER_WINDOW; ++i) filter[i] = 0;
+      for (uint8_t i = 0; i < SONAR_MEDIAN_WINDOW; ++i) sonarSamples[i] = 0;
+      servoDegrees = (cfg.servoMinDegrees + cfg.servoMaxDegrees) * 0.5f;  // conservative start: mid-travel
+    }
+
+  bool configValid() const { return configError(cfg) == 0; }
+  bool calibrated() const { return (cfg.calibratedMask & CAL_ALL) == CAL_ALL; }
+  bool irFilterReady() const { return filterCount >= IR_FILTER_WINDOW; }
+  bool irMotorRunning() const { return irRunning; }
+
+  // Software stop: DC PWM 0, remaining steps cancelled. With disarm, the adapter
+  // also disables the stepper driver and stops servo pulses. Not a power cut.
+  void stop(bool disarm = true) {
+    if (disarm) armed = false;
+    haltDc(); irRunning = false;
+    stepTarget = stepPosition; stepPulseHigh = false;
+  }
+  void setMode(Mode next) { stop(false); mode = next; }
+  float stepDegrees() const { return float(stepPosition) * 360.0f / cfg.stepsPerOutputRev; }
+  bool stepBusy() const { return stepPosition != stepTarget; }
+  float stepTargetDegrees() const { return float(stepTarget) * 360.0f / cfg.stepsPerOutputRev; }
+  float servoMicroseconds() const {
+    const float f = (limit(servoDegrees, cfg.servoMinDegrees, cfg.servoMaxDegrees) - cfg.servoMinDegrees) /
+                    (cfg.servoMaxDegrees - cfg.servoMinDegrees);
+    return cfg.servoMinUs + f * float(cfg.servoMaxUs - cfg.servoMinUs);
+  }
+
+  void sensors(int potAdcIn, int irAdcIn, int sonarAdcIn, bool slotBlocked, bool buttonPressed, uint32_t now) {
+    potAdc = int(limit(float(potAdcIn), 0, 1023)); irAdc = int(limit(float(irAdcIn), 0, 1023));
+    sonarAdc = int(limit(float(sonarAdcIn), 0, 1023)); slotRaw = slotBlocked; buttonRaw = buttonPressed;
+
+    // Potentiometer: fraction of the configured ADC span; degrees only when travel is measured.
+    const float span = float(cfg.potAdcMax - cfg.potAdcMin);
+    const float fraction = limit((float(potAdc) - cfg.potAdcMin) / span, 0, 1);
+    potPercent = fraction * 100.0f;
+    potDegrees = cfg.potTravelDegrees > 0 ? fraction * cfg.potTravelDegrees : INVALID;
+
+    // IR: unfiltered conversion plus moving average over consecutive valid samples.
+    irRawCm = irDistanceFromAdc(cfg, irAdc);
+    if (irRawCm >= 0) {
+      if (filterCount < IR_FILTER_WINDOW) { filter[filterIndex] = irRawCm; filterSum += irRawCm; ++filterCount; }
+      else { filterSum += irRawCm - filter[filterIndex]; filter[filterIndex] = irRawCm; }
+      filterIndex = uint8_t((filterIndex + 1) % IR_FILTER_WINDOW);
+      // Report only a full window so start-up never shows a partially filled average.
+      irCm = irFilterReady() ? filterSum / IR_FILTER_WINDOW : INVALID;
+    } else {
+      irCm = irRawCm; filterSum = 0; filterCount = 0; filterIndex = 0;  // sentinel passes through; no stale value
+    }
+
+    // Sonar: median of the last samples rejects multipath/noise outliers.
+    sonarSamples[sonarIndex] = int16_t(sonarAdc);
+    sonarIndex = uint8_t((sonarIndex + 1) % SONAR_MEDIAN_WINDOW);
+    if (sonarCount < SONAR_MEDIAN_WINDOW) ++sonarCount;
+    sonarCm = sonarDistanceFromAdc(cfg, sonarMedianAdc());
+
+    // Slot sensor: count each debounced NEW obstruction once; holding it blocked never repeats.
+    if (slot.update(slotBlocked, now, cfg.slotDebounceMs) && slot.stable) {
+      ++slotCount;
+      if (armed && mode == SENSOR) {
+        // Busy stepper: the event is counted and reported as ignored. No hidden queue.
+        if (stepBusy() || !moveStepper(cfg.sensorStepDegrees)) ++slotIgnored;
+      }
+    }
+    // Mode button: toggles on the debounced press edge only; holding it does nothing more.
+    if (button.update(buttonPressed, now, cfg.buttonDebounceMs) && button.stable) setMode(mode == GUI ? SENSOR : GUI);
+
+    if (armed && mode == SENSOR) {
+      servoDegrees = cfg.servoMinDegrees + fraction * (cfg.servoMaxDegrees - cfg.servoMinDegrees);
+      // Invalid, too-close or not-yet-filtered IR is treated as "stop", never as "far away".
+      if (!irFilterReady() || irCm < 0 || irCm < cfg.irStopCm) irRunning = false;
+      else if (irCm > cfg.irStartCm) irRunning = true;
+      dcControl = RPM; dcTarget = irRunning ? cfg.sensorRpm : 0;
+    }
+  }
+
+  // encoderCounts: RAW x4 quadrature count (sign is applied here, not in the ISR).
+  void control(uint32_t now, int32_t encoderCounts) {
+    encoderRaw = encoderCounts;
+    if (!configValid()) { stop(); fault = LAB_STR("CONFIG_INVALID"); dcDegrees = 0; dcRpm = 0; return; }
+    const float degreesPerCount = 360.0f / cfg.encoderCountsPerOutputRev * float(cfg.encoderSign);
+    dcDegrees = float(encoderCounts - encoderZero) * degreesPerCount;
+    if (armed && elapsed(now, lastContact) > cfg.watchdogMs) { stop(); fault = LAB_STR("WATCHDOG"); }
+    if (!controlInitialized) {
+      lastControlMs = now; lastControlCounts = encoderCounts; stallCounts = encoderCounts; stallSince = now; reverseSince = now;
+      controlInitialized = true; return;
+    }
+    // Stall / dead encoder: strong drive but no encoder edge for stallMs -> disarm.
+    if (!armed || fabsf(pwm) < cfg.stallPwm || encoderCounts != stallCounts) { stallCounts = encoderCounts; stallSince = now; }
+    else if (elapsed(now, stallSince) >= cfg.stallMs) { stop(); fault = LAB_STR("ENCODER_STALL"); }
+    // Wrong ENCODER_SIGN (or swapped motor leads): strong drive one way while the encoder
+    // reports sustained motion the other way. The loop would run away at full speed -> disarm.
+    if (!armed || fabsf(pwm) < cfg.stallPwm || !(pwm * dcRpm < 0) || fabsf(dcRpm) < 3.0f) reverseSince = now;
+    else if (elapsed(now, reverseSince) >= cfg.stallMs) { stop(); fault = LAB_STR("ENCODER_DIRECTION"); }
+
+    const uint32_t span = elapsed(now, lastControlMs);
+    if (span < 20) return;
+    const float dt = span * 0.001f;
+    const float measured = float(encoderCounts - lastControlCounts) * degreesPerCount / 6.0f / dt;  // deg/s -> RPM
+    dcRpm = 0.6f * dcRpm + 0.4f * measured;
+    lastControlMs = now; lastControlCounts = encoderCounts;
+    if (!armed) { pwm = 0; return; }
+    float targetRpm = dcTarget;
+    if (dcControl == POSITION) {
+      if (elapsed(now, positionStartMs) > cfg.positionTimeoutMs) { haltDc(); fault = LAB_STR("POSITION_TIMEOUT"); return; }
+      const float error = dcTarget - dcDegrees;
+      if (fabsf(error) <= cfg.positionToleranceDeg && fabsf(dcRpm) <= cfg.settleRpm) {
+        pwm = 0; velocityPid.reset(); positionPid.reset(); return;
+      }
+      targetRpm = positionPid.update(dcTarget, dcDegrees, dt, cfg.positionKp, cfg.positionKi, cfg.positionKd, cfg.maxRpm);
+    }
+    if (dcControl == RPM && fabsf(targetRpm) < 0.001f) { pwm = 0; velocityPid.reset(); return; }
+    pwm = velocityPid.update(targetRpm, dcRpm, dt, cfg.velocityKp, cfg.velocityKi, cfg.velocityKd, 255,
+                             cfg.velocityKff * targetRpm);
+  }
+
+  // Returns +1 or -1 when a STEP pulse must be sent now; otherwise 0. Non-blocking.
+  int step(uint32_t nowUs) {
+    stepPulseHigh = false;
+    if (!armed || !stepBusy()) return 0;
+    if (elapsed(nowUs, lastStepUs) < cfg.stepIntervalUs) return 0;
+    lastStepUs = nowUs;
+    const int direction = stepTarget > stepPosition ? 1 : -1;
+    stepPosition += direction; stepPulseHigh = true; return direction;
+  }
+
+  Ack command(char *line, uint32_t now, int32_t encoderCounts) {
+    uint32_t seq = 0; float value = 0; char *parts[4];
+    if (!split(line, parts) || labStringCompare(parts[0], LAB_STR("CMD")) || !parseSequence(parts[1], seq) || !parseValue(parts[3], value)) return Ack{seq, false, LAB_STR("FORMAT")};
+    if (haveSequence && int32_t(seq - lastSequence) <= 0) {
+      if (seq == lastSequence) return Ack{seq, lastSequenceOk, lastSequenceReason};  // duplicate: answer, never re-execute
+      return Ack{seq, false, LAB_STR("STALE_SEQ")};
+    }
+    Ack ack = execute(seq, parts[2], value, now, encoderCounts);
+    haveSequence = true; lastSequence = seq; lastSequenceOk = ack.ok; lastSequenceReason = ack.reason;
+    // Any accepted well-formed command counts as contact, but rejected commands do not.
+    if (ack.ok) lastContact = now;
+    return ack;
+  }
+
+ private:
+  PID velocityPid, positionPid;
+  float filter[IR_FILTER_WINDOW], filterSum;
+  uint8_t filterIndex, filterCount;
+  int16_t sonarSamples[SONAR_MEDIAN_WINDOW];
+  uint8_t sonarIndex, sonarCount;
+  bool irRunning;
+  uint32_t lastControlMs;
+  int32_t lastControlCounts;
+  bool controlInitialized;
+  int32_t stallCounts;
+  uint32_t stallSince, reverseSince, positionStartMs;
+  uint32_t lastStepUs;
+  bool haveSequence;
+  uint32_t lastSequence;
+  bool lastSequenceOk;
+  const char *lastSequenceReason;
+
+  void haltDc() { dcControl = RPM; dcTarget = 0; pwm = 0; velocityPid.reset(); positionPid.reset(); }
+
+  int sonarMedianAdc() const {
+    int16_t sorted[SONAR_MEDIAN_WINDOW];
+    for (uint8_t i = 0; i < sonarCount; ++i) sorted[i] = sonarSamples[i];
+    for (uint8_t i = 1; i < sonarCount; ++i) {
+      const int16_t key = sorted[i]; int j = int(i) - 1;
+      while (j >= 0 && sorted[j] > key) { sorted[j + 1] = sorted[j]; --j; }
+      sorted[j + 1] = key;
+    }
+    return sorted[sonarCount / 2];
+  }
+
+  bool moveStepper(float degrees) {
+    if (stepBusy()) return false;
+    const float count = degrees * cfg.stepsPerOutputRev / 360.0f;
+    const int32_t delta = count >= 0 ? int32_t(count + 0.5f) : int32_t(count - 0.5f);  // nearest whole step
+    if ((delta > 0 && stepPosition > INT32_MAX - delta) || (delta < 0 && stepPosition < INT32_MIN - delta)) return false;
+    stepTarget = stepPosition + delta; return true;
+  }
+  static bool split(char *s, char **parts) {
+    if (!s || !*s) return false;
+    parts[0] = s; int commas = 0;
+    for (char *p = s; *p; ++p) if (*p == ',') {
+      if (commas >= 3) return false;
+      *p = 0; parts[++commas] = p + 1;
+    }
+    if (commas != 3) return false;
+    for (int i = 0; i < 4; ++i) if (!*parts[i]) return false;
+    return true;
+  }
+  static bool parseSequence(const char *s, uint32_t &out) {
+    out = 0; if (!s || !*s) return false;
+    for (; *s; ++s) { if (*s < '0' || *s > '9') return false; uint8_t d = *s - '0'; if (out > (UINT32_MAX - d) / 10U) return false; out = out * 10U + d; }
+    return true;
+  }
+  static bool parseValue(const char *s, float &out) {
+    if (!s || !*s || *s == ' ' || *s == '\t') return false;
+    char *end = 0; out = float(strtod(s, &end));
+    return end != s && *end == 0 && finiteNumber(out);
+  }
+  Ack execute(uint32_t seq, const char *verb, float value, uint32_t now, int32_t counts) {
+    const Ack ok = {seq, true, LAB_STR("OK")};
+    if (!labStringCompare(verb, LAB_STR("STOP"))) { if (value != 0) return Ack{seq, false, LAB_STR("RANGE")}; stop(); return ok; }
+    if (!labStringCompare(verb, LAB_STR("PING"))) { return value == 0 ? ok : Ack{seq, false, LAB_STR("RANGE")}; }
+    if (!labStringCompare(verb, LAB_STR("ARM"))) {
+      if (value != 0) return Ack{seq, false, LAB_STR("RANGE")};
+      if (!configValid()) return Ack{seq, false, LAB_STR("CONFIG_INVALID")};
+      if (!cfg.hardwareVerified) return Ack{seq, false, LAB_STR("CONFIG_REQUIRED")};
+      if (!armed) { stop(); armed = true; lastContact = now; fault = LAB_STR("NONE"); }
+      return ok;
+    }
+    if (!labStringCompare(verb, LAB_STR("MODE"))) {
+      if (value != 0 && value != 1) return Ack{seq, false, LAB_STR("RANGE")};
+      setMode(value == 0 ? GUI : SENSOR); return ok;
+    }
+    if (!labStringCompare(verb, LAB_STR("ZERO"))) {
+      if (value != 0) return Ack{seq, false, LAB_STR("RANGE")};
+      if (armed) return Ack{seq, false, LAB_STR("DISARM_FIRST")};
+      encoderZero = counts; dcDegrees = 0; stepPosition = stepTarget = 0; slotCount = 0; slotIgnored = 0; return ok;
+    }
+    const bool servo = !labStringCompare(verb, LAB_STR("SERVO")), rpm = !labStringCompare(verb, LAB_STR("DC_RPM")), move = !labStringCompare(verb, LAB_STR("DC_MOVE")), stepMove = !labStringCompare(verb, LAB_STR("STEP_MOVE"));
+    if (!servo && !rpm && !move && !stepMove) return Ack{seq, false, LAB_STR("UNKNOWN_COMMAND")};
+    if (!armed) return Ack{seq, false, LAB_STR("DISARMED")};
+    if (mode != GUI) return Ack{seq, false, LAB_STR("SENSOR_MODE")};
+    if (servo) {
+      if (value < cfg.servoMinDegrees || value > cfg.servoMaxDegrees) return Ack{seq, false, LAB_STR("RANGE")};
+      servoDegrees = value;
+    } else if (rpm) {
+      if (fabsf(value) > cfg.maxRpm) return Ack{seq, false, LAB_STR("RANGE")};
+      dcControl = RPM; dcTarget = value; velocityPid.reset(); positionPid.reset();
+    } else if (move) {
+      if (fabsf(value) > cfg.moveMaxDegrees) return Ack{seq, false, LAB_STR("RANGE")};
+      dcDegrees = float(counts - encoderZero) * 360.0f / cfg.encoderCountsPerOutputRev * float(cfg.encoderSign);
+      dcControl = POSITION; dcTarget = dcDegrees + value; positionStartMs = now; velocityPid.reset(); positionPid.reset();
+    } else {
+      if (fabsf(value) > cfg.stepMoveMaxDegrees) return Ack{seq, false, LAB_STR("RANGE")};
+      if (!moveStepper(value)) return Ack{seq, false, LAB_STR("BUSY_OR_LIMIT")};
+    }
+    return ok;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Telemetry formatting. Shared by the Uno and the host simulator so the exact
+// bytes the bridge parses are covered by tests. No printf/float support needed.
+// ---------------------------------------------------------------------------
+class LineWriter {
+ public:
+  LineWriter(char *buffer, size_t capacity) : buf(buffer), cap(capacity), len(0), overflow(capacity < 2) {}
+  void ch(char c) { if (len + 2 <= cap) buf[len++] = c; else overflow = true; }
+  void text(const char *s) { for (char c = labReadChar(s); c; c = labReadChar(++s)) ch(c); }
+  void u32(uint32_t v) {
+    char tmp[11]; uint8_t n = 0;
+    do { tmp[n++] = char('0' + v % 10); v /= 10; } while (v);
+    while (n) ch(tmp[--n]);
+  }
+  void i32(int32_t v) { if (v < 0) { ch('-'); u32(uint32_t(-(v + 1)) + 1U); } else u32(uint32_t(v)); }
+  void flag(bool v) { ch(v ? '1' : '0'); }
+  void fixed(float v, uint8_t decimals) {
+    if (!finiteNumber(v)) { text(LAB_STR("-1")); return; }  // never emit nan/inf; protocol rejects them
+    uint32_t scale = 1; for (uint8_t i = 0; i < decimals; ++i) scale *= 10;
+    if (v < 0) { v = -v; if (v * scale >= 0.5f) ch('-'); }
+    if (v > 2.0e9f) v = 2.0e9f;
+    uint32_t whole = uint32_t(v);
+    uint32_t frac = uint32_t((v - float(whole)) * float(scale) + 0.5f);
+    if (frac >= scale) { ++whole; frac -= scale; }
+    u32(whole);
+    if (decimals) {
+      ch('.');
+      for (uint32_t d = scale / 10; d > 0; d /= 10) { ch(char('0' + (frac / d) % 10)); }
+    }
+  }
+  void sep() { ch(','); }
+  // Terminates with '\n' and NUL. Returns the line length, or 0 if it did not fit.
+  size_t finish() {
+    if (overflow || len + 2 > cap) { if (cap) buf[0] = 0; return 0; }
+    buf[len++] = '\n'; buf[len] = 0; return len;
+  }
+ private:
+  char *buf; size_t cap, len; bool overflow;
+};
+
+// STATE,ms,mode,pot_deg,pot_pct,ir_raw_cm,ir_cm,sonar_cm,slot_count,slot_ignored,servo_cmd_deg,
+//       dc_deg,dc_rpm,dc_target,dc_control,step_deg,step_target_deg,step_busy,armed,calibrated,fault
+inline size_t formatState(const Controller &c, uint32_t now, char *buffer, size_t capacity) {
+  LineWriter w(buffer, capacity);
+  w.text(LAB_STR("STATE,")); w.u32(now); w.sep(); w.u32(uint32_t(c.mode)); w.sep();
+  w.fixed(c.potDegrees, 2); w.sep(); w.fixed(c.potPercent, 1); w.sep();
+  w.fixed(c.irRawCm, 2); w.sep(); w.fixed(c.irCm, 2); w.sep(); w.fixed(c.sonarCm, 2); w.sep();
+  w.u32(c.slotCount); w.sep(); w.u32(c.slotIgnored); w.sep(); w.fixed(c.servoDegrees, 2); w.sep();
+  w.fixed(c.dcDegrees, 2); w.sep(); w.fixed(c.dcRpm, 2); w.sep(); w.fixed(c.dcTarget, 2); w.sep();
+  w.text(c.dcControl == RPM ? LAB_STR("RPM") : LAB_STR("POSITION")); w.sep();
+  w.fixed(c.stepDegrees(), 2); w.sep(); w.fixed(c.stepTargetDegrees(), 2); w.sep();
+  w.flag(c.stepBusy()); w.sep(); w.flag(c.armed); w.sep(); w.flag(c.calibrated()); w.sep(); w.text(c.fault);
+  return w.finish();
+}
+
+// RAW,ms,pot_adc,ir_adc,sonar_adc,slot_blocked,button_pressed,enc_counts,step_steps
+// enc_counts is the raw x4 count: no CPR, sign or zero applied (used to measure CPR).
+inline size_t formatRaw(const Controller &c, uint32_t now, char *buffer, size_t capacity) {
+  LineWriter w(buffer, capacity);
+  w.text(LAB_STR("RAW,")); w.u32(now); w.sep(); w.u32(uint32_t(c.potAdc)); w.sep(); w.u32(uint32_t(c.irAdc)); w.sep();
+  w.u32(uint32_t(c.sonarAdc)); w.sep(); w.flag(c.slotRaw); w.sep(); w.flag(c.buttonRaw); w.sep();
+  w.i32(c.encoderRaw); w.sep(); w.i32(c.stepPosition);
+  return w.finish();
+}
+
+// CONFIG,protocol,servo_min_deg,servo_max_deg,servo_min_us,servo_max_us,max_rpm,sensor_rpm,
+//        dc_move_max_deg,step_move_max_deg,steps_per_rev,enc_cpr,enc_sign,pot_adc_min,pot_adc_max,
+//        pot_travel_deg,ir_stop_cm,ir_start_cm,sonar_cm_per_adc,hw_verified,cal_mask
+inline size_t formatConfig(const Config &c, char *buffer, size_t capacity) {
+  LineWriter w(buffer, capacity);
+  w.text(LAB_STR("CONFIG,")); w.u32(LAB_PROTOCOL_VERSION); w.sep();
+  w.fixed(c.servoMinDegrees, 1); w.sep(); w.fixed(c.servoMaxDegrees, 1); w.sep();
+  w.i32(c.servoMinUs); w.sep(); w.i32(c.servoMaxUs); w.sep();
+  w.fixed(c.maxRpm, 1); w.sep(); w.fixed(c.sensorRpm, 1); w.sep();
+  w.fixed(c.moveMaxDegrees, 1); w.sep(); w.fixed(c.stepMoveMaxDegrees, 1); w.sep();
+  w.fixed(c.stepsPerOutputRev, 1); w.sep(); w.fixed(c.encoderCountsPerOutputRev, 1); w.sep(); w.i32(c.encoderSign); w.sep();
+  w.i32(c.potAdcMin); w.sep(); w.i32(c.potAdcMax); w.sep(); w.fixed(c.potTravelDegrees, 1); w.sep();
+  w.fixed(c.irStopCm, 1); w.sep(); w.fixed(c.irStartCm, 1); w.sep(); w.fixed(c.sonarCmPerAdc, 3); w.sep();
+  w.flag(c.hardwareVerified); w.sep(); w.u32(c.calibratedMask & CAL_ALL);
+  return w.finish();
+}
+
+inline size_t formatAck(const Ack &ack, char *buffer, size_t capacity) {
+  LineWriter w(buffer, capacity);
+  w.text(LAB_STR("ACK,")); w.u32(ack.sequence); w.sep(); w.text(ack.ok ? LAB_STR("OK") : LAB_STR("ERR")); w.sep(); w.text(ack.reason);
+  return w.finish();
+}
+
+}  // namespace lab
+#endif
