@@ -36,6 +36,21 @@ conda activate sensorMotorLab
 
 On Ubuntu 22.04 you can instead use a native apt install of ROS 2 Humble. Step-by-step setup is in [TEAM_SETUP.md](TEAM_SETUP.md).
 
+## Repository layout
+
+Empty folders hold a `.gitkeep` file; delete it once the folder has real content.
+
+| Folder | Purpose |
+|---|---|
+| `firmware/` | Arduino Uno firmware |
+| `ros2_ws/src/` | ROS 2 workspace: serial bridge node and rqt panel |
+| `hardware/` | Wiring documentation and diagrams |
+| `calibration/` | Sensor calibration data and analysis |
+| `tests/` | Test code and the [test report](tests/TEST_REPORT.md) |
+| `tools/` | Helper scripts |
+| `docs/` | Project documentation |
+| `reference/` | Course assignment material |
+
 ## Team division
 
 Each person owns one area and describes their contribution and technical challenges in their PRs.
