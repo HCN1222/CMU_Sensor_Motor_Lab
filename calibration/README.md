@@ -1,6 +1,6 @@
 # Sensor Calibration and Error Analysis
 
-The CSV files here contain headers only; no measurements have been recorded yet.
+The CSV files here contain headers only; no measurements have been recorded yet. The unit tests create their own synthetic data in a temporary directory and never write to these files.
 
 ## Procedure
 
@@ -38,3 +38,7 @@ The output directory must be new or empty, so old plots cannot be mistaken for n
 | `calibration_suggestions.json`, `hardware_config_suggestion.txt` | New IR lookup table, sonar cm/ADC, pot ADC end points and travel angle. **Not written into the firmware automatically.** |
 
 The filter's standard deviation is only meaningful for a fixed target after the filter has settled. Changes caused by motion are not noise, and a smoother curve is not necessarily more accurate.
+
+```bash
+cd calibration && python -m unittest test_analysis.py -v     # 7 tests
+```
