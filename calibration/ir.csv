@@ -1,1 +1,6 @@
 reference,raw_adc,measured,split,notes
+30,450.35,24.074,calibration,"n=46 adc_std=13.79 invalid=0 capture.py 2026-11-10 18:41; white board, trial 1"
+50,278.98,41.892,calibration,"n=46 adc_std=15.04 invalid=0 capture.py 2026-11-10 18:41; white board, trial 1"
+80,179.33,70.433,calibration,"n=46 adc_std=15.17 invalid=0 capture.py 2026-11-10 18:43; white board, trial 1"
+100,144.46,87.470,calibration,"n=46 adc_std=15.56 invalid=0 capture.py 2026-11-10 18:44; white board, trial 1"
+110,132.20,94.190,calibration,"n=46 adc_std=15.39 invalid=0 capture.py 2026-11-10 18:45; white board, trial 1"

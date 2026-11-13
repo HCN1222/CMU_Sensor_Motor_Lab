@@ -1,6 +1,6 @@
 # Sensor Calibration and Error Analysis
 
-The CSV files here contain headers only; no measurements have been recorded yet. The unit tests create their own synthetic data in a temporary directory and never write to these files.
+The CSV files hold rows recorded with `capture.py`; results are reported in `tests/TEST_REPORT.md`. The unit tests create their own synthetic data in a temporary directory and never write to these files.
 
 ## Procedure
 

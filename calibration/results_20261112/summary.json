@@ -1,0 +1,58 @@
+{
+  "data_policy": "Computed only from supplied CSV rows; missing data is null, not zero error.",
+  "sensors": {
+    "pot": {
+      "unit": "deg",
+      "rows": 3,
+      "n": 0,
+      "mean_error": null,
+      "mae": null,
+      "rmse": null,
+      "max_abs_error": null,
+      "reference_min": null,
+      "reference_max": null
+    },
+    "ir": {
+      "unit": "cm",
+      "rows": 5,
+      "n": 0,
+      "mean_error": null,
+      "mae": null,
+      "rmse": null,
+      "max_abs_error": null,
+      "reference_min": null,
+      "reference_max": null
+    },
+    "sonar": {
+      "unit": "cm",
+      "rows": 8,
+      "n": 3,
+      "mean_error": -20.104666666666667,
+      "mae": 20.104666666666667,
+      "rmse": 24.916275671402687,
+      "max_abs_error": 39.81,
+      "reference_min": 50.0,
+      "reference_max": 100.0
+    },
+    "slot": {
+      "unit": "events",
+      "rows": 2,
+      "n": 2,
+      "mean_error": 0.5,
+      "mae": 0.5,
+      "rmse": 0.7071067811865476,
+      "max_abs_error": 1.0,
+      "reference_min": 10.0,
+      "reference_max": 10.0
+    }
+  },
+  "filter": {
+    "n": 167,
+    "raw_std_cm": 2.3388803536538343,
+    "filtered_std_cm": 1.077295928502134,
+    "interpretation": "Compare standard deviations only for a stationary target after filter settling; motion and lag are not noise.",
+    "reference_cm": 50.0,
+    "raw_mean_error_cm": -3.8371856287425103,
+    "filtered_mean_error_cm": -3.852395209580841
+  }
+}

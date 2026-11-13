@@ -74,3 +74,59 @@ One trial overcounted by one event. [Slot error plot](../calibration/results_202
 | STOP during motion | DC/stepper response and restart behaviour |
 
 No physical stepper measurements or completed Uno/ROS integration records were supplied for this update.
+
+## Sensor Calibration — 2026-11-12
+
+Calibration rows were recorded with `calibration/capture.py` on 2026-11-10 (reference distances by tape, angles by protractor). Results: `python calibration/analyze.py --input calibration --output calibration/results_20261112 --filter-reference 50`. Summary tables and figures: [calibration/result_figure](../calibration/result_figure/calibration_summary.md).
+
+### IR Rangefinder (Sharp GP2Y0A02YK)
+
+Converted distance uses the vendor typical table currently in `firmware/hardware_config.h`; the team calibration table has not been applied. 46 samples per point.
+
+| Reference (cm) | Mean ADC | ADC std | Converted (cm) | Error (cm) | Error (%) |
+|---:|---:|---:|---:|---:|---:|
+| 30 | 450.35 | 13.79 | 24.07 | −5.9 | −19.8% |
+| 50 | 278.98 | 15.04 | 41.89 | −8.1 | −16.2% |
+| 80 | 179.33 | 15.17 | 70.43 | −9.6 | −12.0% |
+| 100 | 144.46 | 15.56 | 87.47 | −12.5 | −12.5% |
+| 110 | 132.20 | 15.39 | 94.19 | −15.8 | −14.4% |
+
+The vendor table reads 6–16 cm short over 30–110 cm. [Transfer function](../calibration/results_20261112/ir_transfer.svg). Suggested table: [hardware_config_suggestion.txt](../calibration/results_20261112/hardware_config_suggestion.txt).
+
+### IR Filter (5-sample moving average)
+
+Stationary target at 50 cm, 167 frames over 18.4 s.
+
+| | Mean error (cm) | Std (cm) |
+|---|---:|---:|
+| Raw | −3.84 | 2.34 |
+| Filtered | −3.85 | 1.08 |
+
+Filtering reduces the standard deviation by about 2.2×; the mean offset comes from the vendor table and is not removed by filtering. [Raw vs. filtered plot](../calibration/results_20261112/ir_filter.svg).
+
+### Ultrasonic Rangefinder (LV-MaxSonar-EZ)
+
+Converted distance uses the firmware's 1.27 cm/ADC. Validation rows (stationary flat board) were recorded before the calibration rows (larger flat board).
+
+| Split | Reference (cm) | Mean ADC | ADC std | Converted (cm) | Error (cm) |
+|---|---:|---:|---:|---:|---:|
+| validation | 50 | 32.13 | 12.82 | 45.55 | −4.45 |
+| validation | 80 | 46.67 | 19.70 | 63.94 | −16.06 |
+| validation | 100 | 49.42 | 27.54 | 60.19 | −39.81 |
+| calibration | 30 | 27.70 | 12.63 | 31.67 | +1.67 |
+| calibration | 50 | 34.59 | 11.81 | 44.86 | −5.14 |
+| calibration | 80 | 53.04 | 21.25 | 60.88 | −19.12 |
+| calibration | 100 | 44.37 | 22.94 | 58.72 | −41.28 |
+| calibration | 100 | 45.54 | 21.12 | 56.46 | −43.54 |
+
+Validation error (n = 3, 50–100 cm): mean −20.1 cm, MAE 20.1 cm, RMSE 24.9 cm, max 39.8 cm. The ADC at 80 cm is higher than at 100 cm and the ADC spread grows with distance, consistent with echoes from nearby objects during the setup. [Transfer function](../calibration/results_20261112/sonar_transfer.svg), [validation error](../calibration/results_20261112/sonar_error.svg).
+
+### Potentiometer
+
+Angle converted offline from the measured ADC with the firmware's linear formula (`POT_ADC_MIN` = 6.46, `POT_ADC_MAX` = 629.30, travel 180°).
+
+| Reference | Mean ADC | ADC std | Converted angle | Error |
+|---:|---:|---:|---:|---:|
+| 0° | 6.46 | 5.79 | 0.0° | 0.0° |
+| 90° | 272.02 | 3.07 | 76.7° | −13.3° |
+| 180° | 629.30 | 1.04 | 180.0° | 0.0° |

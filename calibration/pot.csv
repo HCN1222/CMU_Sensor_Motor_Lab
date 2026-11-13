@@ -1,1 +1,4 @@
 reference,raw_adc,measured,split,notes
+0,6.46,,calibration,n=46 adc_std=5.79 invalid=46 capture.py 2026-11-10 19:01; marked zero position
+180,629.30,,calibration,n=46 adc_std=1.04 invalid=46 capture.py 2026-11-10 19:02; marked zero position
+90,272.02,,calibration,n=46 adc_std=3.07 invalid=46 capture.py 2026-11-10 19:03; marked zero position

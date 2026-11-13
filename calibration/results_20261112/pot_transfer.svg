@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="680" viewBox="0 0 1000 680">
+<rect width="1000" height="680" fill="white"/>
+<g font-family="Arial,sans-serif" fill="#182332">
+<text x="108" y="40" font-size="23" font-weight="bold">POT measured transfer function</text>
+<path d="M 145.27 85 v 470" stroke="#e3e7ed"/>
+<text x="145.27" y="580" text-anchor="middle" font-size="14">0</text>
+<path d="M 518.00 85 v 470" stroke="#e3e7ed"/>
+<text x="518.00" y="580" text-anchor="middle" font-size="14">90</text>
+<path d="M 890.73 85 v 470" stroke="#e3e7ed"/>
+<text x="890.73" y="580" text-anchor="middle" font-size="14">180</text>
+<path d="M 108 555.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="560.00" text-anchor="end" font-size="14">-93.19</text>
+<path d="M 108 461.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="466.00" text-anchor="end" font-size="14">71.24</text>
+<path d="M 108 367.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="372.00" text-anchor="end" font-size="14">235.7</text>
+<path d="M 108 273.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="278.00" text-anchor="end" font-size="14">400.1</text>
+<path d="M 108 179.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="184.00" text-anchor="end" font-size="14">564.5</text>
+<path d="M 108 85.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="90.00" text-anchor="end" font-size="14">729</text>
+<path d="M 108 85 v 470 h 820" fill="none" stroke="#273548" stroke-width="1.5"/>
+<text x="518" y="615" text-anchor="middle" font-size="17">Reference physical quantity (deg)</text>
+<text transform="translate(30 320) rotate(-90)" text-anchor="middle" font-size="17">Raw output (ADC counts)</text>
+<polyline points="145.27,498.03 518.00,346.22 890.73,141.97" fill="none" stroke="#1568aa" stroke-width="2"/>
+<circle cx="145.27" cy="498.03" r="4" fill="#1568aa"/>
+<circle cx="890.73" cy="141.97" r="4" fill="#1568aa"/>
+<circle cx="518.00" cy="346.22" r="4" fill="#1568aa"/>
+<text x="155.27" y="520.03" text-anchor="start" font-size="14" fill="#1568aa">0 deg</text>
+<text x="155.27" y="536.03" text-anchor="start" font-size="14" fill="#1568aa">ADC 6</text>
+<text x="508.00" y="318.22" text-anchor="end" font-size="14" fill="#1568aa">90 deg</text>
+<text x="508.00" y="334.22" text-anchor="end" font-size="14" fill="#1568aa">ADC 272</text>
+<text x="880.73" y="113.97" text-anchor="end" font-size="14" fill="#1568aa">180 deg</text>
+<text x="880.73" y="129.97" text-anchor="end" font-size="14" fill="#1568aa">ADC 629</text>
+<rect x="108" y="642" width="20" height="4" fill="#1568aa"/>
+<text x="136" y="649" font-size="14">Calibration</text>
+<rect x="418" y="642" width="20" height="4" fill="#d35b2a"/>
+<text x="446" y="649" font-size="14">Validation</text>
+</g></svg>
