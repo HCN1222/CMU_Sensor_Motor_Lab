@@ -9,7 +9,6 @@
 #include <cmath>
 #include <string>
 #include <vector>
-
 static int checks = 0;
 static void check(bool result, const char *name) {
   ++checks;
