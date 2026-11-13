@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>sensor_motor_lab</name>
+  <version>0.1.0</version>
+  <description>Uno bridge and rqt control panel for the Sensors and Motor Control lab.</description>
+  <maintainer email="lab-team@example.invalid">Lab Team</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
