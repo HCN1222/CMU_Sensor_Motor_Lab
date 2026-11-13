@@ -1,0 +1,17 @@
+category,item,actual,measured,std,error,error_pct,notes
+IR calibration,30 cm,30 cm,ADC 450.4 -> 24.1 cm,ADC 13.8,-5.9 cm,-19.8%,"n=46, vendor table conversion"
+IR calibration,50 cm,50 cm,ADC 279.0 -> 41.9 cm,ADC 15.0,-8.1 cm,-16.2%,"n=46, vendor table conversion"
+IR calibration,80 cm,80 cm,ADC 179.3 -> 70.4 cm,ADC 15.2,-9.6 cm,-12.0%,"n=46, vendor table conversion"
+IR calibration,100 cm,100 cm,ADC 144.5 -> 87.5 cm,ADC 15.6,-12.5 cm,-12.5%,"n=46, vendor table conversion"
+IR calibration,110 cm,110 cm,ADC 132.2 -> 94.2 cm,ADC 15.4,-15.8 cm,-14.4%,"n=46, vendor table conversion"
+IR filter,Raw,50 cm,46.16 cm,2.34 cm,-3.84 cm,-7.7%,peak-to-peak 10.6 cm
+IR filter,Filtered (5-sample moving average),50 cm,46.15 cm,1.08 cm,-3.85 cm,-7.7%,peak-to-peak 4.8 cm
+Ultrasonic,validation 50 cm,50 cm,ADC 32.13 -> 45.55 cm,ADC 12.82,-4.45 cm,-8.9%,"n=46, firmware 1.27 cm/ADC"
+Ultrasonic,validation 80 cm,80 cm,ADC 46.67 -> 63.94 cm,ADC 19.70,-16.06 cm,-20.1%,"n=46, firmware 1.27 cm/ADC"
+Ultrasonic,validation 100 cm,100 cm,ADC 49.42 -> 60.19 cm,ADC 27.54,-39.81 cm,-39.8%,"n=33, firmware 1.27 cm/ADC"
+Potentiometer,0 deg,0 deg,ADC 6.5 -> 0.0 deg,ADC 5.8,0.0 deg,0.0%,"n=46, offline linear conversion"
+Potentiometer,90 deg,90 deg,ADC 272.0 -> 76.7 deg,ADC 3.1,-13.3 deg,-14.8%,"n=46, offline linear conversion"
+Potentiometer,180 deg,180 deg,ADC 629.3 -> 180.0 deg,ADC 1.0,0.0 deg,0.0%,"n=46, offline linear conversion"
+Slot sensor,"Slow beam breaks, trial 1",10,11,,+1,,overcounted by 1
+Slot sensor,"Slow beam breaks, trial 2",10,10,,0,,correct
+DC encoder,CPR,10 revolutions,3600 counts,,0,0%,"CPR = 360, measured and reported by the team on 2026-11-11"

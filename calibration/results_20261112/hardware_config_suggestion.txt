@@ -1,0 +1,11 @@
+// Suggested firmware/hardware_config.h values from calibration rows (NOT applied automatically).
+// Review coverage and the validation error first, then copy, regenerate and re-upload.
+// Set the matching *_CALIBRATED flag only when validation data support it.
+// pot
+const int16_t POT_ADC_MIN = 6, POT_ADC_MAX = 629;
+const float POT_TRAVEL_DEG = 178.7f;  // angle between the two ADC end points; 0 deg at POT_ADC_MIN
+// ir
+const int16_t IR_TABLE_ADC[] = {450, 279, 179, 144, 132};
+const float IR_TABLE_CM[] = {30, 50, 80, 100, 110};
+// sonar
+const float SONAR_CM_PER_ADC = 2.5764f;  // fitted intercept -33.76 cm (firmware assumes ~0)

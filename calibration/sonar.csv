@@ -1,0 +1,9 @@
+reference,raw_adc,measured,split,notes
+50,32.13,45.554,validation,n=46 adc_std=12.82 invalid=0 capture.py 2026-11-10 18:51; stationary flat board
+80,46.67,63.942,validation,n=46 adc_std=19.70 invalid=0 capture.py 2026-11-10 18:53; stationary flat board
+100,49.42,60.190,validation,n=33 adc_std=27.54 invalid=0 capture.py 2026-11-10 18:54; stationary flat board
+30,27.70,31.667,calibration,"n=46 adc_std=12.63 invalid=0 capture.py 2026-11-10 19:09; big flat board, trial 1"
+50,34.59,44.864,calibration,"n=46 adc_std=11.81 invalid=0 capture.py 2026-11-10 19:10; big flat board, trial 1"
+80,53.04,60.877,calibration,"n=46 adc_std=21.25 invalid=0 capture.py 2026-11-10 19:11; big flat board, trial 1"
+100,44.37,58.724,calibration,"n=46 adc_std=22.94 invalid=0 capture.py 2026-11-10 19:11; big flat board, trial 1"
+100,45.54,56.460,calibration,"n=46 adc_std=21.12 invalid=0 capture.py 2026-11-10 19:13; big flat board, trial 1"

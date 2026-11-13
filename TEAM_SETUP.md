@@ -36,7 +36,25 @@ conda activate sensorMotorLab
 - Run `conda activate sensorMotorLab` first in every new terminal.
 - Quick check: `ros2 --help` prints the ROS 2 command list.
 
-## 4. Contributing
+## 4. Build the ROS 2 workspace
+
+```bat
+cd ros2_ws
+colcon build --merge-install
+call install\setup.bat
+```
+
+In PowerShell use `install\setup.ps1`; on Linux use `colcon build --symlink-install` and `source install/setup.bash`. Run `setup.bat` again in every new terminal.
+
+To start the bridge and the control panel, first **close the Arduino IDE Serial Monitor** (a serial port can only be opened by one program at a time), then:
+
+```bat
+ros2 launch sensor_motor_lab lab.launch.py port:=COMx
+```
+
+If the panel does not appear: run `rqt --force-discover`, then choose Robot Tools → Sensors and Motor Control. Topics and GUI usage are described in [ros2_ws/README.md](ros2_ws/README.md).
+
+## 5. Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [BRANCH_NAMING.md](BRANCH_NAMING.md) before your first branch. Work on a personal branch, open a PR to `main`, and get an approval from another teammate before merging.
 
@@ -45,4 +63,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) and [BRANCH_NAMING.md](BRANCH_NAMING.md)
 | Symptom | Cause / fix |
 |---|---|
 | `conda activate` does nothing in PowerShell | Run `conda init powershell` once, then reopen the terminal |
-| `ros2` command not found | `conda activate sensorMotorLab` was not run in this terminal |
+| `ros2` command not found | `conda activate sensorMotorLab` was not run, or `install\setup.bat` was not run in the new terminal |
+| Bridge reports the serial port cannot be opened / Access denied | The Serial Monitor or another program holds the port, or `port:=` is wrong |
+| Panel stays on `Waiting for firmware CONFIG` and motion commands are rejected | The bridge has not received the firmware's CONFIG frame: check the port and that the current firmware is uploaded |
+| Serial port not visible in WSL | WSL needs usbipd-win to forward USB; running directly in the Windows conda environment is simpler |
