@@ -11,7 +11,7 @@ Five-person Sensors & Motor Control assignment. The goal is a single Arduino Uno
 | Shown in both modes | All four sensors, the three motor states, mode, and connection status; the ultrasonic sensor keeps ranging and is plotted |
 | Physical switch | Each press of a debounced switch toggles the mode |
 
-**Current status**: project skeleton only. There is no firmware or ROS code yet.
+**Current status**: the firmware, serial protocol, calibration analysis, wiring documentation, and the ROS 2 bridge and rqt control panel are in the repository. The bridge and panel have been run on ROS 2 Humble without an Uno attached; running them with the real hardware is next.
 
 ## Assignment requirements
 
@@ -35,6 +35,16 @@ conda activate sensorMotorLab
 ```
 
 On Ubuntu 22.04 you can instead use a native apt install of ROS 2 Humble. Step-by-step setup is in [TEAM_SETUP.md](TEAM_SETUP.md).
+
+## ROS 2 bridge and control panel
+
+```bash
+cd ros2_ws && colcon build --merge-install   # on Linux you can use --symlink-install
+call install\setup.bat                        # Linux: source install/setup.bash
+ros2 launch sensor_motor_lab lab.launch.py port:=COM5
+```
+
+The `lab_bridge` node talks to the Uno over USB serial and the rqt panel sends commands and plots live data. Topics, safety logic, and GUI usage are in [ros2_ws/README.md](ros2_ws/README.md).
 
 ## Repository layout
 

@@ -11,11 +11,11 @@ Every result belongs to exactly one of four categories, which cannot substitute 
 
 ## Environment
 
-| | Windows 11 | Linux (Ubuntu 22.04) |
+| | Windows 11 | Linux (WSL2 Ubuntu 22.04) |
 |---|---|---|
-| Python | | |
-| ROS 2 | | |
-| Qt binding | | |
+| Python | 3.11.18 (conda `sensorMotorLab`) | 3.10.12 (system) |
+| ROS 2 | Humble (RoboStack conda packages) | Humble (apt, `/opt/ros/humble`) |
+| Qt binding | python_qt_binding → PyQt5 | python_qt_binding → PyQt5 |
 | C++ | | |
 | Arduino | | |
 
@@ -23,10 +23,16 @@ Every result belongs to exactly one of four categories, which cannot substitute 
 
 | Check | Windows | Linux | Category |
 |---|---|---|---|
+| Offscreen Qt panel test, `tests/python/dashboard_smoke.py` (real python_qt_binding widgets) | ✅ | ✅ | Actually run and passed (synthetic data) |
+| `colcon build`, `ros2 pkg executables`, rqt plugin discovery (`rqt --list-plugins`) | ✅ | ✅ | Actually run and passed |
+| `ros2 launch sensor_motor_lab lab.launch.py`, `tests/ros/launch_smoke.py`: bridge node + rqt panel (offscreen) both join the ROS graph | ✅ | ✅ | Actually run and passed (no Uno connected) |
+| ROS bridge over USB with a real Uno | Not run | Not run | Next step |
+
+ROS rows were run on 2026-11-09. Reproduce on Windows: `conda activate sensorMotorLab`, build and source `ros2_ws` (see [ros2_ws/README.md](../ros2_ws/README.md)), then run `python tests/ros/launch_smoke.py` and, from the repository root, `PYTHONPATH=ros2_ws/src/sensor_motor_lab python tests/python/dashboard_smoke.py`. On Linux with native ROS, first `source /opt/ros/humble/setup.bash`.
 
 ## Known limitations
 
-None recorded yet.
+- WSL cannot see Windows COM ports and needs usbipd-win to reach the Uno. Running the bridge directly in the Windows conda environment does not need it.
 
 ## D Update — 2026-11-12
 
