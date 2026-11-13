@@ -1,0 +1,11 @@
+<library path="sensor_motor_lab">
+  <class name="Sensors and Motor Control" type="sensor_motor_lab.dashboard.LabDashboard" base_class_type="rqt_gui_py::Plugin">
+    <description>Four sensor readings, three motor commands, mode switching, and live plots.</description>
+    <qtgui>
+      <group><label>Robot Tools</label></group>
+      <label>Sensors and Motor Control</label>
+      <icon type="theme">applications-engineering</icon>
+      <statustip>Control the lab Arduino through the ROS 2 serial bridge.</statustip>
+    </qtgui>
+  </class>
+</library>
