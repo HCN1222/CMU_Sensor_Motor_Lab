@@ -36,6 +36,16 @@ conda activate sensorMotorLab
 
 On Ubuntu 22.04 you can instead use a native apt install of ROS 2 Humble. Step-by-step setup is in [TEAM_SETUP.md](TEAM_SETUP.md).
 
+## Software checks
+
+The protocol/link and bridge-callback unit checks run without an Uno or a ROS 2 runtime:
+
+```bash
+PYTHONPATH=ros2_ws/src/sensor_motor_lab python -m unittest discover -s tests/python -p 'test_*.py' -v
+```
+
+`test_protocol_link.py` covers frame validation, serial-session safety, and the operator lease. `test_bridge_logic.py` uses lightweight ROS shims to cover bridge callbacks. The optional pseudo-terminal transport case is skipped when `pyserial` is unavailable. See the [test report](tests/TEST_REPORT.md) for actual results and environment limitations.
+
 ## ROS 2 bridge and control panel
 
 ```bash

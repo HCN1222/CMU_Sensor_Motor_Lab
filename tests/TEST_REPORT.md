@@ -34,6 +34,22 @@ ROS rows were run on 2026-11-09. Reproduce on Windows: `conda activate sensorMot
 
 - WSL cannot see Windows COM ports and needs usbipd-win to reach the Uno. Running the bridge directly in the Windows conda environment does not need it.
 
+## C Test Update — 2026-11-12
+
+C2 checks were actually run on macOS with Python 3.9.6 and Apple clang 16.0.0. They use synthetic inputs and import shims; they do not claim a real Uno, ROS graph, or GUI run.
+
+| Check | Result | Detail |
+|---|---|---|
+| Python protocol, link, operator-lease, and bridge-callback unit tests | PASS | `PYTHONPATH=ros2_ws/src/sensor_motor_lab python3 -m unittest discover -s tests/python -p 'test_*.py' -v`: 29 passed. One optional pseudo-terminal transport test was skipped because `pyserial` is not installed. |
+| C++ controller core behaviour | PASS in software model | `clang++ -std=c++11 -Wall -Wextra -Werror -pedantic tests/firmware/test_controller.cpp`: 125 behavioural checks passed with the synthetic plant. The test now verifies the current `HARDWARE_CONFIG_VERIFIED = true` and `ENCODER_SIGN = -1` configuration without changing it. |
+| `python3 tools/run_tests.py --no-avr` | Actually run; incomplete | Generated-sketch, C++ core, Python unit, and calibration checks passed. The host simulator cannot compile because tracked file `tests/firmware/host_cli.cpp` is absent; the Qt smoke check cannot run because neither `python_qt_binding` nor `PySide6` is installed. AVR compilation was intentionally skipped. |
+
+### C2 follow-up
+
+- Restore or add the missing tracked `tests/firmware/host_cli.cpp` before relying on the Python ↔ C++ E2E step in the project runner.
+- Install `pyserial` to exercise the optional POSIX pseudo-terminal transport test, and use the documented ROS/Qt environment to run the dashboard smoke test.
+- These checks validate protocol and controller logic only; physical motor direction, encoder CPR, calibration, and ROS-to-Uno operation still need the recorded hardware procedure.
+
 ## D Update — 2026-11-12
 
 These software checks were run on the supplied sensor_motor_lab.zip project bundle. They have not been rerun on this repository branch; its firmware, protocol and ROS dependencies are still being integrated.

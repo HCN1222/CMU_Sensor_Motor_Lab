@@ -37,15 +37,15 @@ static unsigned feed(lab::Controller &c, unsigned now, int samples, int pot, int
 static void hardwareConfiguration() {
   const lab::Config hwc = hw::makeHardwareConfig();
   check(lab::configError(hwc) == 0, "hardware_config.h passes configuration validation");
-  check(!hwc.hardwareVerified, "hardware gate ships closed: ARM refused until a person verifies wiring");
+  check(hwc.hardwareVerified, "current hardware configuration permits ARM after verification");
   check(hwc.calibratedMask == 0, "no subsystem is marked calibrated without measured data");
+  check(hwc.encoderSign == -1, "measured encoder direction is configured as -1");
   check(hwc.irStopCm >= 20 && hwc.irStartCm <= 150 && hwc.irStartCm > hwc.irStopCm, "IR hysteresis lies inside the 20-150 cm GP2Y0A02 range");
   check(near(hwc.irCm[0], 20) && near(hwc.irCm[hwc.irPoints - 1], 150), "IR table spans 20-150 cm (GP2Y0A02, not the 10-80 cm GP2Y0A21)");
   check(near(hwc.stepsPerOutputRev, 200), "stepper full-step mode is 200 steps/rev");
   check(hwc.potTravelDegrees == 0, "pot travel is not assumed (0 = unmeasured)");
   lab::Controller c(hwc);
-  check(!send(c, 1, "ARM", 0).ok, "real hardware config refuses ARM while unverified");
-  check(!std::strcmp(send(c, 2, "ARM", 0).reason, "CONFIG_REQUIRED"), "refusal reason tells the user what to do");
+  check(send(c, 1, "ARM", 0).ok && c.armed, "verified hardware config accepts explicit ARM");
   feed(c, 0, 1, 512, 287, 100);
   check(c.potDegrees == lab::INVALID && near(c.potPercent, 50.05f, 0.05f), "unmeasured pot reports percentage only, degrees invalid");
   check(near(c.servoDegrees, 30) && near(c.servoMicroseconds(), 1500), "servo starts mid-travel at the 1500 us centre");
@@ -273,7 +273,7 @@ static void formatting() {
   lab::formatRaw(c, UINT32_MAX, line, sizeof(line)); t = tokens(line);
   check(t.size() == 9 && t[7] == "-2147483648", "RAW handles INT32_MIN encoder counts");
   lab::formatConfig(hw::makeHardwareConfig(), line, sizeof(line)); t = tokens(line);
-  check(t.size() == 21 && t[0] == "CONFIG" && t[1] == "2" && t[19] == "0" && t[20] == "0", "CONFIG frame: 21 fields, protocol 2, gate and calibration flags");
+  check(t.size() == 21 && t[0] == "CONFIG" && t[1] == "2" && t[19] == "1" && t[20] == "0", "CONFIG frame: 21 fields, protocol 2, verified gate and calibration flags");
   const lab::Ack ack = {7, false, "RANGE"}; lab::formatAck(ack, line, sizeof(line));
   check(!std::strcmp(line, "ACK,7,ERR,RANGE\n"), "ACK frame text");
   char tiny[8]; check(lab::formatState(c, 1, tiny, sizeof(tiny)) == 0 && tiny[0] == 0, "overflow yields an empty line, never a truncated frame");
