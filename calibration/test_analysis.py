@@ -84,6 +84,58 @@ class CalibrationTests(unittest.TestCase):
             self.assertIn("POT_ADC_MIN = 100, POT_ADC_MAX = 900", text)
             self.assertIn("POT_TRAVEL_DEG = 270.0f", text)
 
+    def test_capture_averages_paired_frames_into_one_row(self):
+        import types
+        from unittest.mock import patch
+        import capture
+        from sensor_motor_lab.protocol import parse_line
+        state = parse_line("STATE,100,0,-1,50.0,40,40.5,100,0,0,30,0,0,0,RPM,0,0,0,0,0,NONE")
+        raws = [parse_line(f"RAW,100,512,{adc},79,0,0,0,0") for adc in (286, 288, 287, 287, 287, 288)]
+        with tempfile.TemporaryDirectory(prefix="synthetic-calibration-") as temp:
+            root = Path(temp)
+            (root / "ir.csv").write_text("reference,raw_adc,measured,split,notes\n")
+            args = types.SimpleNamespace(sensor="ir", reference=40.0, split="validation", seconds=1, notes="SYNTHETIC", port="X")
+            with patch.object(capture, "HERE", root), patch("builtins.input", lambda *_: ""), \
+                    patch.object(capture, "frames", lambda port, seconds: ((state, r) for r in raws)):
+                capture.capture_sensor(args)
+            row = next(csv.DictReader((root / "ir.csv").open()))
+            self.assertEqual((row["reference"], row["raw_adc"], row["measured"], row["split"]), ("40", "287.17", "40.500", "validation"))
+            invalid = parse_line("STATE,100,0,-1,50.0,-1,-1,100,0,0,30,0,0,0,RPM,0,0,0,0,0,NONE")
+            with patch.object(capture, "HERE", root), patch("builtins.input", lambda *_: ""), \
+                    patch.object(capture, "frames", lambda port, seconds: ((invalid, r) for r in raws)), \
+                    self.assertRaises(SystemExit):
+                capture.capture_sensor(args)
+
+    def test_capture_frames_skip_telemetry_from_before_the_reset(self):
+        import capture
+
+        class FakePort:
+            """Serial stand-in: hands out scripted chunks, then nothing."""
+            def __init__(self, *chunks):
+                self.chunks = list(chunks)
+            def __enter__(self):
+                return self
+            def __exit__(self, *exc):
+                return False
+            def read(self, size):
+                return self.chunks.pop(0) if self.chunks else b""
+
+        def pair(ms, slot=0):
+            return (f"STATE,{ms},0,-1,50.0,40,40.5,100,{slot},0,30,0,0,0,RPM,0,0,0,0,0,NONE\n"
+                    f"RAW,{ms},512,287,79,0,0,0,0\n").encode()
+
+        def run(port, **kwargs):
+            return [(s.ms, s.slot_count) for s, _ in capture.frames("X", 0.05, connection=port, **kwargs)]
+
+        # Uno resets on open: the frame left in the USB buffer (old clock, old count) is dropped.
+        stale = FakePort(pair(270600, slot=7), b"INFO,BOOT_DISARMED\n", pair(100), pair(200, slot=1))
+        self.assertEqual(run(stale), [(100, 0), (200, 1)])
+        # Board that does not reset on open: telemetry is used once the grace period ends.
+        self.assertEqual(run(FakePort(pair(5000), pair(5100)), boot_grace=-1), [(5000, 0), (5100, 0)])
+        # A reset in the middle of a capture aborts instead of mixing old and new data.
+        with self.assertRaises(SystemExit):
+            run(FakePort(b"INFO,BOOT_DISARMED\n", pair(100), pair(200), b"INFO,BOOT_DISARMED\n", pair(100)))
+
     def test_folded_ir_curve_is_flagged_not_suggested(self):
         with tempfile.TemporaryDirectory(prefix="synthetic-calibration-") as temp:
             root = Path(temp)

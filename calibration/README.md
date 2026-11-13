@@ -9,7 +9,17 @@ The CSV files hold rows recorded with `capture.py`; results are reported in `tes
 3. **Validation**: record again at positions **different from the calibration points**; this time `measured` is the physical value converted by the firmware. Error statistics use **validation rows only**, so the fitted points are not used to claim accuracy.
 4. Once validation data support it, set the matching `*_CALIBRATED` flag to true.
 
-## Data collection
+## Data collection (read directly from the Uno, read-only)
+
+Close the ROS bridge and the Arduino Serial Monitor first. `capture.py` never sends a command, so the controller stays DISARMED. Each run averages about 3 s of data and appends one row.
+
+```bash
+python calibration/capture.py --port COM5 ir    --reference 40  --split calibration --notes "white card"
+python calibration/capture.py --port COM5 sonar --reference 100 --split validation
+python calibration/capture.py --port COM5 pot   --reference 90  --split calibration
+python calibration/capture.py --port COM5 slot  --reference 10  --split validation --seconds 15
+python calibration/capture.py --port COM5 ir-filter --seconds 20          # stationary target, raw vs. filtered
+```
 
 | File | How to collect |
 |---|---|
@@ -40,5 +50,5 @@ The output directory must be new or empty, so old plots cannot be mistaken for n
 The filter's standard deviation is only meaningful for a fixed target after the filter has settled. Changes caused by motion are not noise, and a smoother curve is not necessarily more accurate.
 
 ```bash
-cd calibration && python -m unittest test_analysis.py -v     # 7 tests
+cd calibration && python -m unittest test_analysis.py -v     # 9 tests
 ```
