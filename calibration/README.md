@@ -50,5 +50,5 @@ The output directory must be new or empty, so old plots cannot be mistaken for n
 The filter's standard deviation is only meaningful for a fixed target after the filter has settled. Changes caused by motion are not noise, and a smoother curve is not necessarily more accurate.
 
 ```bash
-cd calibration && python -m unittest test_analysis.py -v     # 7 tests
+cd calibration && python -m unittest test_analysis.py -v     # 9 tests
 ```
