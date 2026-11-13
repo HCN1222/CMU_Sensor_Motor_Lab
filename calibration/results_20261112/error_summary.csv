@@ -1,0 +1,5 @@
+sensor,unit,rows,n,reference_min,reference_max,mean_error,mae,rmse,max_abs_error
+pot,deg,3,0,,,,,,
+ir,cm,5,0,,,,,,
+sonar,cm,8,3,50.0,100.0,-20.104666666666667,20.104666666666667,24.916275671402687,39.81
+slot,events,2,2,10.0,10.0,0.5,0.5,0.7071067811865476,1.0

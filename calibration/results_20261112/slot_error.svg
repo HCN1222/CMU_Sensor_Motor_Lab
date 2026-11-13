@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="680" viewBox="0 0 1000 680">
+<rect width="1000" height="680" fill="white"/>
+<g font-family="Arial,sans-serif" fill="#182332">
+<text x="108" y="40" font-size="23" font-weight="bold">SLOT validation error</text>
+<path d="M 108.00 85 v 470" stroke="#e3e7ed"/>
+<text x="108.00" y="580" text-anchor="middle" font-size="14">9.95</text>
+<path d="M 272.00 85 v 470" stroke="#e3e7ed"/>
+<text x="272.00" y="580" text-anchor="middle" font-size="14">9.97</text>
+<path d="M 436.00 85 v 470" stroke="#e3e7ed"/>
+<text x="436.00" y="580" text-anchor="middle" font-size="14">9.99</text>
+<path d="M 600.00 85 v 470" stroke="#e3e7ed"/>
+<text x="600.00" y="580" text-anchor="middle" font-size="14">10.01</text>
+<path d="M 764.00 85 v 470" stroke="#e3e7ed"/>
+<text x="764.00" y="580" text-anchor="middle" font-size="14">10.03</text>
+<path d="M 928.00 85 v 470" stroke="#e3e7ed"/>
+<text x="928.00" y="580" text-anchor="middle" font-size="14">10.05</text>
+<path d="M 108 555.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="560.00" text-anchor="end" font-size="14">-0.08</text>
+<path d="M 108 461.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="466.00" text-anchor="end" font-size="14">0.152</text>
+<path d="M 108 367.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="372.00" text-anchor="end" font-size="14">0.384</text>
+<path d="M 108 273.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="278.00" text-anchor="end" font-size="14">0.616</text>
+<path d="M 108 179.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="184.00" text-anchor="end" font-size="14">0.848</text>
+<path d="M 108 85.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="90.00" text-anchor="end" font-size="14">1.08</text>
+<path d="M 108 85 v 470 h 820" fill="none" stroke="#273548" stroke-width="1.5"/>
+<text x="518" y="615" text-anchor="middle" font-size="17">Reference physical quantity (events)</text>
+<text transform="translate(30 320) rotate(-90)" text-anchor="middle" font-size="17">Measured minus reference (events)</text>
+<circle cx="518.00" cy="117.41" r="4" fill="#1568aa"/>
+<circle cx="518.00" cy="522.59" r="4" fill="#1568aa"/>
+<rect x="108" y="642" width="20" height="4" fill="#1568aa"/>
+<text x="136" y="649" font-size="14">Independent validation</text>
+</g></svg>

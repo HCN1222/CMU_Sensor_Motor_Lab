@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="680" viewBox="0 0 1000 680">
+<rect width="1000" height="680" fill="white"/>
+<g font-family="Arial,sans-serif" fill="#182332">
+<text x="108" y="40" font-size="23" font-weight="bold">SONAR measured transfer function</text>
+<path d="M 145.27 85 v 470" stroke="#e3e7ed"/>
+<text x="145.27" y="580" text-anchor="middle" font-size="14">30</text>
+<path d="M 358.26 85 v 470" stroke="#e3e7ed"/>
+<text x="358.26" y="580" text-anchor="middle" font-size="14">50</text>
+<path d="M 677.74 85 v 470" stroke="#e3e7ed"/>
+<text x="677.74" y="580" text-anchor="middle" font-size="14">80</text>
+<path d="M 890.73 85 v 470" stroke="#e3e7ed"/>
+<text x="890.73" y="580" text-anchor="middle" font-size="14">100</text>
+<path d="M 108 555.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="560.00" text-anchor="end" font-size="14">23.65</text>
+<path d="M 108 461.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="466.00" text-anchor="end" font-size="14">30.34</text>
+<path d="M 108 367.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="372.00" text-anchor="end" font-size="14">37.03</text>
+<path d="M 108 273.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="278.00" text-anchor="end" font-size="14">43.71</text>
+<path d="M 108 179.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="184.00" text-anchor="end" font-size="14">50.4</text>
+<path d="M 108 85.00 h 820" stroke="#e3e7ed"/>
+<text x="94" y="90.00" text-anchor="end" font-size="14">57.09</text>
+<path d="M 108 85 v 470 h 820" fill="none" stroke="#273548" stroke-width="1.5"/>
+<text x="518" y="615" text-anchor="middle" font-size="17">Reference physical quantity (cm)</text>
+<text transform="translate(30 320) rotate(-90)" text-anchor="middle" font-size="17">Raw output (ADC counts)</text>
+<polyline points="145.27,498.03 358.26,401.22 677.74,141.97 890.73,255.57" fill="none" stroke="#1568aa" stroke-width="2"/>
+<circle cx="145.27" cy="498.03" r="4" fill="#1568aa"/>
+<circle cx="358.26" cy="401.22" r="4" fill="#1568aa"/>
+<circle cx="677.74" cy="141.97" r="4" fill="#1568aa"/>
+<circle cx="890.73" cy="263.79" r="4" fill="#1568aa"/>
+<circle cx="890.73" cy="247.35" r="4" fill="#1568aa"/>
+<text x="155.27" y="520.03" text-anchor="start" font-size="14" fill="#1568aa">30 cm</text>
+<text x="155.27" y="536.03" text-anchor="start" font-size="14" fill="#1568aa">ADC 28</text>
+<text x="348.26" y="373.22" text-anchor="end" font-size="14" fill="#1568aa">50 cm</text>
+<text x="348.26" y="389.22" text-anchor="end" font-size="14" fill="#1568aa">ADC 35</text>
+<text x="667.74" y="113.97" text-anchor="end" font-size="14" fill="#1568aa">80 cm</text>
+<text x="667.74" y="129.97" text-anchor="end" font-size="14" fill="#1568aa">ADC 53</text>
+<text x="880.73" y="277.57" text-anchor="end" font-size="14" fill="#1568aa">100 cm</text>
+<text x="880.73" y="293.57" text-anchor="end" font-size="14" fill="#1568aa">ADC 45</text>
+<rect x="108" y="642" width="20" height="4" fill="#1568aa"/>
+<text x="136" y="649" font-size="14">Calibration</text>
+<circle cx="358.26" cy="435.78" r="4" fill="#d35b2a"/>
+<circle cx="677.74" cy="231.48" r="4" fill="#d35b2a"/>
+<circle cx="890.73" cy="192.84" r="4" fill="#d35b2a"/>
+<rect x="418" y="642" width="20" height="4" fill="#d35b2a"/>
+<text x="446" y="649" font-size="14">Validation</text>
+</g></svg>
