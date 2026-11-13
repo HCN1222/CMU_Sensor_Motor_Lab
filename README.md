@@ -65,12 +65,12 @@ Empty folders hold a `.gitkeep` file; delete it once the folder has real content
 
 Each person owns one area and describes their contribution and technical challenges in their PRs.
 
-| Area | Scope |
+| Member | Scope |
 |---|---|
-| A | ROS 2 nodes and rqt GUI; repository skeleton |
-| B | Arduino firmware core: mode switching, switch, servo |
-| C | Serial protocol, controller tests, DC encoder and PID |
-| D | Hardware wiring tools, integration tests, slot sensor and stepper |
-| E | Sensor calibration: IR, ultrasonic, potentiometer |
+| ChengNing | ROS 2 nodes and rqt GUI; repository skeleton |
+| Zean | Arduino firmware core: mode switching, switch, servo |
+| Audrey | Serial protocol, controller tests, DC encoder and PID |
+| Yiheng | Hardware wiring tools, integration tests, slot sensor and stepper |
+| Aasta | Sensor calibration: IR, ultrasonic, potentiometer |
 
 Contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md) and [BRANCH_NAMING.md](BRANCH_NAMING.md). Test results are recorded in [tests/TEST_REPORT.md](tests/TEST_REPORT.md).
